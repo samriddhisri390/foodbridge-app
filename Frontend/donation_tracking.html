@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodBridge | Track Your Donation</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Translations & Global Functions -->
+    <script src="lang.js"></script>
+    
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <!-- Canvas Confetti for Delivered state -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #22c55e;
+            --primary-rgb: 34, 197, 94;
+            --primary-dark: #16a34a;
+            --background: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.7);
+            --surface-solid: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: rgba(226, 232, 240, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            
+            --status-pending: #f59e0b;
+            --status-accepted: #3b82f6;
+            --status-transit: #f97316;
+            --status-delivered: #22c55e;
+            --status-cancelled: #ef4444;
+        }
+
+        [data-theme="dark"] {
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --surface-solid: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(51, 65, 85, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: var(--transition);
+        }
+
+        * { box-sizing: border-box; }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulseRing {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        @keyframes truckMove {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(5px); }
+            100% { transform: translateX(0); }
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse { animation: pulse 2s infinite; }
+        .truck-anim { animation: truckMove 1.5s infinite ease-in-out; }
+        .bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+
+        .ring-container { position: relative; display: flex; align-items: center; justify-content: center; }
+        .ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: pulseRing 2s infinite;
+        }
+
+        /* Navbar (Donor Style) */
+        .navbar {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--primary);
+            font-weight: 800;
+            font-size: 1.5rem;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header-section {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        .header-section h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .header-section p { color: var(--text-muted); font-size: 1.1rem; }
+
+        .search-wrapper {
+            max-width: 600px;
+            margin: 2rem auto 0;
+            display: flex;
+            gap: 1rem;
+            padding: 0.5rem;
+            background: var(--surface-solid);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+        }
+        .search-wrapper input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 0 1.5rem;
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            color: var(--text-main);
+        }
+        .btn-track {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-track:hover { background: var(--primary-dark); transform: translateY(-2px); }
+
+        /* Donation Info Card */
+        .donation-card {
+            background: var(--surface-solid);
+            border-radius: 32px;
+            padding: 2.5rem;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .info-group { display: flex; flex-direction: column; gap: 1.5rem; }
+        .info-item { display: flex; flex-direction: column; gap: 0.25rem; }
+        .info-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .info-value { font-size: 1.1rem; font-weight: 700; }
+
+        .status-badge-lg {
+            padding: 1rem 2rem;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-weight: 800;
+            font-size: 1.25rem;
+            width: fit-content;
+        }
+
+        /* Timeline */
+        .timeline-section {
+            background: var(--surface-solid);
+            border-radius: 32px;
+            padding: 3rem;
+            border: 1px solid var(--border);
+            margin-bottom: 3rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            width: 100%;
+            max-width: 500px;
+        }
+        .timeline-step {
+            display: flex;
+            gap: 2rem;
+            position: relative;
+            padding-bottom: 2.5rem;
+        }
+        .timeline-step:last-child { padding-bottom: 0; }
+
+        .timeline-marker {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--background);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: var(--transition);
+        }
+        .timeline-step.completed .timeline-marker { background: var(--primary); border-color: var(--primary); color: white; }
+        .timeline-step.active .timeline-marker { border-color: var(--status-transit); color: var(--status-transit); background: var(--surface-solid); }
+        
+        .timeline-line {
+            position: absolute;
+            left: 23px;
+            top: 48px;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+        .timeline-step.completed .timeline-line { background: var(--primary); }
+        .timeline-step.active .timeline-line { border-left: 2px dashed var(--status-transit); background: transparent; }
+
+        .timeline-content { padding-top: 0.5rem; }
+        .timeline-title { font-weight: 800; font-size: 1.1rem; margin-bottom: 0.25rem; }
+        .timeline-time { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; margin-bottom: 0.5rem; }
+        .timeline-desc { font-size: 0.95rem; color: var(--text-muted); line-height: 1.5; }
+
+        /* Map Section */
+        .map-section {
+            background: var(--surface-solid);
+            border-radius: 32px;
+            padding: 2.5rem;
+            border: 1px solid var(--border);
+            margin-bottom: 3rem;
+        }
+        .map-placeholder {
+            height: 400px;
+            background: var(--background);
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+            background-image: 
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .marker {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transform: translate(-50%, -100%);
+        }
+        .marker-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: var(--glass-shadow);
+        }
+        .marker-label {
+            background: var(--surface-solid);
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: var(--glass-shadow);
+            white-space: nowrap;
+        }
+        .route-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300px;
+            height: 2px;
+            border-top: 2px dashed var(--text-muted);
+            transform: translate(-50%, -50%) rotate(-30deg);
+            z-index: 1;
+        }
+
+        /* Side Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        .side-card {
+            background: var(--surface-solid);
+            border-radius: 24px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .side-card h3 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+
+        .profile-small { display: flex; align-items: center; gap: 1rem; }
+        .avatar-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        /* Buttons */
+        .btn-full { width: 100%; padding: 1rem; border-radius: 12px; font-weight: 700; cursor: pointer; transition: var(--transition); font-family: inherit; }
+        .btn-primary { background: var(--primary); color: white; border: none; }
+        .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text-main); }
+        .btn-red-outline { background: transparent; border: 1.5px solid #fee2e2; color: #ef4444; }
+
+        /* Others List */
+        .mini-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .mini-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--background);
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Share */
+        .share-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .share-btn {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 12px;
+            background: var(--background);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .share-btn:hover { background: rgba(var(--primary-rgb), 0.1); border-color: var(--primary); }
+
+        /* Mobile Bottom Nav */
+        .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border);
+            padding: 12px 0;
+            justify-content: space-around;
+            z-index: 1000;
+        }
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .bottom-nav-item.active { color: var(--primary); }
+
+        .theme-toggle {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+            border: none;
+            z-index: 2000;
+            transition: transform 0.3s;
+        }
+        .theme-toggle:hover { transform: scale(1.1) rotate(15deg); }
+
+        @media (max-width: 1024px) {
+            .donation-card { gap: 1.5rem; padding: 1.5rem; }
+            .container { padding: 1rem; }
+            .timeline-section { padding: 2rem 1rem; }
+        }
+
+        @media (max-width: 768px) {
+            .donation-card { grid-template-columns: 1fr; gap: 2rem; }
+            .navbar-links { display: none; }
+            .bottom-nav { display: flex; padding-bottom: env(safe-area-inset-bottom, 12px); }
+            .container { padding-bottom: 100px; }
+            .header-section h1 { font-size: 2rem; }
+            .timeline-step { gap: 1rem; }
+            .timeline-step { flex-direction: column; align-items: center; text-align: center; }
+            .timeline-line { left: 50%; top: 48px; width: 2px; height: 100%; transform: translateX(-50%); }
+            .timeline-content { padding-top: 1rem; }
+            .search-wrapper { flex-direction: column; background: transparent; box-shadow: none; border: none; padding: 0; }
+            .search-wrapper input { background: var(--surface-solid); border: 1px solid var(--border); padding: 1rem; border-radius: 14px; margin-bottom: 0.5rem; }
+            .btn-track { width: 100%; padding: 1rem; }
+            .map-placeholder { height: 300px; }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size = 24, color, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current) {
+                    iconRef.current.innerHTML = "";
+                    const i = document.createElement("i");
+                    i.setAttribute("data-lucide", name);
+                    if (color) i.style.color = color;
+                    if (size) { i.style.width = size + "px"; i.style.height = size + "px"; }
+                    if (className) i.className = className;
+                    iconRef.current.appendChild(i);
+                    lucide.createIcons({ root: iconRef.current });
+                }
+            }, [name, color, size, className]);
+            return <span ref={iconRef} className={`icon-wrapper ${className}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }} />;
+        };
+
+        const LanguageSwitcher = () => {
+            const [lang, setLang] = useState(window.getLang());
+            const toggleLang = (newLang) => {
+                window.setLang(newLang);
+                setLang(newLang);
+                window.location.reload();
+            };
+            return (
+                <div className="lang-switcher" style={{ display: 'flex', gap: '4px', background: 'var(--surface)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'english' ? 'var(--primary)' : 'transparent', color: lang === 'english' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('english')}>🇬🇧 EN</button>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'hindi' ? 'var(--primary)' : 'transparent', color: lang === 'hindi' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('hindi')}>🇮🇳 HI</button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [donationId, setDonationId] = useState('');
+            const [status, setStatus] = useState('IN_TRANSIT'); // PENDING, ACCEPTED, IN_TRANSIT, DELIVERED, CANCELLED
+            const [showResults, setShowResults] = useState(false);
+            
+            // Location Tracking State
+            const [donorLoc, setDonorLoc] = useState(null);
+            const [ngoLoc, setNgoLoc] = useState([28.6139, 77.2090]); // Default Delhi
+            const [locStatus, setLocStatus] = useState('DETECTING'); // DETECTING, ON, OFF
+            const [lastUpdated, setLastUpdated] = useState('Just now');
+            const mapRef = useRef(null);
+            const mapInstanceRef = useRef(null);
+            const donorMarkerRef = useRef(null);
+
+            // Fetch live location
+            const fetchLocation = async () => {
+                try {
+                    // Simulating API Call since we don't have the backend
+                    // const res = await fetch(`http://localhost:5000/api/donations/track/${donationId || 'test'}`);
+                    // const data = await res.json();
+                    
+                    // Mock Data for Demo
+                    const mockLat = 28.6139 + (Math.random() - 0.5) * 0.05;
+                    const mockLng = 77.2090 + (Math.random() - 0.5) * 0.05;
+                    const mockStatus = Math.random() > 0.1 ? 'active' : 'stopped';
+                    
+                    if (mockStatus === 'active') {
+                        setDonorLoc([mockLat, mockLng]);
+                        setLocStatus('ON');
+                        setLastUpdated('Just now');
+                        
+                        // Update Leaflet Marker if map exists
+                        if (mapInstanceRef.current && donorMarkerRef.current) {
+                            donorMarkerRef.current.setLatLng([mockLat, mockLng]);
+                            
+                            // Optionally draw route line
+                            const latlngs = [ [mockLat, mockLng], ngoLoc ];
+                            if (window.routeLine) {
+                                window.routeLine.setLatLngs(latlngs);
+                            } else {
+                                window.routeLine = L.polyline(latlngs, {color: '#f97316', dashArray: '5, 10'}).addTo(mapInstanceRef.current);
+                            }
+                            
+                            // Fit bounds to show both markers
+                            mapInstanceRef.current.fitBounds(L.latLngBounds([mockLat, mockLng], ngoLoc), { padding: [50, 50] });
+                        }
+                    } else {
+                        setLocStatus('OFF');
+                        setLastUpdated('5 mins ago');
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch location", err);
+                    setLocStatus('OFF');
+                }
+            };
+
+            // Polling logic
+            useEffect(() => {
+                let interval;
+                if (showResults && status === 'IN_TRANSIT') {
+                    fetchLocation(); // initial fetch
+                    interval = setInterval(fetchLocation, 30000); // 30s poll
+                }
+                return () => {
+                    if (interval) clearInterval(interval);
+                };
+            }, [showResults, status, donationId]);
+
+            // Initialize Map
+            useEffect(() => {
+                if (showResults && status === 'IN_TRANSIT' && mapRef.current && !mapInstanceRef.current && typeof L !== 'undefined') {
+                    // Create map
+                    const map = L.map(mapRef.current).setView(ngoLoc, 13);
+                    mapInstanceRef.current = map;
+
+                    // Add tile layer
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors'
+                    }).addTo(map);
+
+                    // Add NGO Marker (Blue)
+                    const ngoIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color:#3b82f6; width:24px; height:24px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.5);"></div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+                    L.marker(ngoLoc, {icon: ngoIcon}).addTo(map).bindPopup("<b>NGO Location</b><br>Helping Hands Foundation");
+
+                    // Add Donor Marker (Green + Pulse)
+                    const donorIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="position:relative;">
+                                 <div style="background-color:#22c55e; width:24px; height:24px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.5); position:relative; z-index:2;"></div>
+                                 <div style="position:absolute; top:-8px; left:-8px; width:40px; height:40px; border-radius:50%; background-color:rgba(34,197,94,0.4); animation:pulseRing 2s infinite; z-index:1;"></div>
+                               </div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+                    
+                    const initialDonorLoc = donorLoc || [28.6239, 77.2190]; // Fallback
+                    donorMarkerRef.current = L.marker(initialDonorLoc, {icon: donorIcon}).addTo(map).bindPopup("<b>Donor Location</b><br>Live Tracking");
+
+                    // Initial Route Line
+                    window.routeLine = L.polyline([initialDonorLoc, ngoLoc], {color: '#f97316', dashArray: '5, 10'}).addTo(map);
+                    
+                    // Center map on bounds
+                    map.fitBounds(L.latLngBounds(initialDonorLoc, ngoLoc), { padding: [50, 50] });
+                }
+
+                // Cleanup map on unmount
+                return () => {
+                    if (mapInstanceRef.current && (!showResults || status !== 'IN_TRANSIT')) {
+                        mapInstanceRef.current.remove();
+                        mapInstanceRef.current = null;
+                        window.routeLine = null;
+                    }
+                };
+            }, [showResults, status]);
+
+            useEffect(() => {
+                document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+            }, [darkMode]);
+
+            const handleTrack = () => {
+                if (donationId) {
+                    setShowResults(true);
+                    // Simulate loading or status change
+                }
+            };
+
+            const getStatusConfig = () => {
+                switch(status) {
+                    case 'PENDING': return { label: 'Pending', color: 'var(--status-pending)', bg: 'rgba(245, 158, 11, 0.1)', icon: 'clock' };
+                    case 'ACCEPTED': return { label: 'Accepted', color: 'var(--status-accepted)', bg: 'rgba(59, 130, 246, 0.1)', icon: 'check-circle' };
+                    case 'IN_TRANSIT': return { label: 'In Transit', color: 'var(--status-transit)', bg: 'rgba(249, 115, 22, 0.1)', icon: 'truck', pulse: true };
+                    case 'DELIVERED': return { label: 'Delivered', color: 'var(--status-delivered)', bg: 'rgba(34, 197, 94, 0.1)', icon: 'heart' };
+                    case 'CANCELLED': return { label: 'Cancelled', color: 'var(--status-cancelled)', bg: 'rgba(239, 68, 68, 0.1)', icon: 'x-circle' };
+                    default: return { label: 'Unknown', color: 'var(--text-muted)', bg: 'var(--background)', icon: 'help-circle' };
+                }
+            };
+
+            const triggerConfetti = () => {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#22c55e', '#3b82f6', '#f59e0b']
+                });
+            };
+
+            useEffect(() => {
+                if (status === 'DELIVERED' && showResults) {
+                    triggerConfetti();
+                }
+            }, [status, showResults]);
+
+            const config = getStatusConfig();
+
+            return (
+                <div className="app-container">
+                    <nav className="navbar">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <button className="btn-icon show-mobile" onClick={() => window.location.href='donor_dashboard.html'}>
+                                <Icon name="arrow-left" size={24} />
+                            </button>
+                            <a href="donor_dashboard.html" className="logo">
+                                <Icon name="heart" color="var(--primary)" size={28} />
+                                <span className="hide-mobile">FoodBridge</span>
+                            </a>
+                        </div>
+                        <div className="navbar-links" style={{ display: 'flex', gap: '2rem' }}>
+                            <a href="donor_dashboard.html" style={{ textDecoration: 'none', color: 'var(--text-main)', fontWeight: 600 }}>{window.t('nav_dashboard')}</a>
+                            <a href="donation_form.html" style={{ textDecoration: 'none', color: 'var(--text-main)', fontWeight: 600 }}>{window.t('nav_donate')}</a>
+                            <a href="#" style={{ textDecoration: 'none', color: 'var(--primary)', fontWeight: 700 }}>{window.t('nav_track')}</a>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <LanguageSwitcher />
+                            <div className="hide-mobile" onClick={() => window.location.href='notifications.html'} style={{ cursor: 'pointer', display: 'flex' }}>
+                                <Icon name="bell" size={24} color="var(--text-muted)" />
+                            </div>
+                            <img 
+                                src="https://ui-avatars.com/api/?name=Rahul+Sharma&background=22c55e&color=fff" 
+                                style={{ width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer' }} 
+                                alt="User" 
+                                onClick={() => window.location.href='profile.html'}
+                            />
+                            <button className="btn-icon hide-mobile" onClick={() => window.location.href='login.html'} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '12px', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                <Icon name="log-out" size={18} color="var(--text-muted)" />
+                            </button>
+                        </div>
+                    </nav>
+
+                    <div className="container">
+                        <div className="header-section fade-in">
+                            <h1>Track Your Donation 📍</h1>
+                            <p>Real-time status of your food donation</p>
+                            
+                            <div className="search-wrapper">
+                                <input 
+                                    type="text" 
+                                    placeholder="Enter Donation ID e.g. #FB-2026-00123" 
+                                    value={donationId}
+                                    onChange={(e) => setDonationId(e.target.value)}
+                                />
+                                <button className="btn-track" onClick={handleTrack}>Track</button>
+                            </div>
+                            <div style={{ marginTop: '1.5rem' }}>
+                                <a href="donor_dashboard.html" style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'none', fontSize: '0.9rem' }}>
+                                    OR View My Donations
+                                </a>
+                            </div>
+                        </div>
+
+                        {showResults && (
+                            <div className="results-container">
+                                {/* Donation Info Card */}
+                                <div className="donation-card fade-in" style={{ animationDelay: '0.1s' }}>
+                                    <div className="info-group">
+                                        <div className="info-item">
+                                            <span className="info-label">Donation ID</span>
+                                            <span className="info-value" style={{ color: 'var(--primary)' }}>{donationId || "#FB-2026-00123"}</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Food Item</span>
+                                            <span className="info-value">Biryani & Sides</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Quantity</span>
+                                            <span className="info-value">5kg (Feeds ~20)</span>
+                                        </div>
+                                        <div className="info-item">
+                                            <span className="info-label">Category</span>
+                                            <div style={{ marginTop: '4px' }}>
+                                                <span className="badge" style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '99px', fontSize: '12px', fontWeight: 700 }}>Cooked Food</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="info-group">
+                                        <div className="info-item">
+                                            <span className="info-label">Current Status</span>
+                                            <div className={`status-badge-lg ${config.pulse ? 'pulse' : ''}`} style={{ background: config.bg, color: config.color }}>
+                                                <Icon name={config.icon} size={28} className={status === 'IN_TRANSIT' ? 'truck-anim' : ''} />
+                                                {config.label}
+                                            </div>
+                                        </div>
+                                        {status !== 'CANCELLED' && (
+                                            <>
+                                                <div className="info-item">
+                                                    <span className="info-label">Estimated Delivery</span>
+                                                    <span className="info-value">{status === 'DELIVERED' ? 'Delivered Today' : '2:30 PM Today'}</span>
+                                                </div>
+                                                <div className="info-item">
+                                                    <span className="info-label">NGO Partner</span>
+                                                    <span className="info-value">Helping Hands Foundation</span>
+                                                </div>
+                                            </>
+                                        )}
+                                        {status === 'CANCELLED' && (
+                                            <div className="info-item">
+                                                <span className="info-label">Reason</span>
+                                                <span className="info-value" style={{ color: 'var(--status-cancelled)' }}>NGO unable to pick up at this time</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Timeline */}
+                                <div className="timeline-section fade-in" style={{ animationDelay: '0.2s' }}>
+                                    <h3 style={{ marginBottom: '3rem', fontWeight: 800 }}>Donation Journey</h3>
+                                    <div className="timeline">
+                                        {[
+                                            { id: 'PENDING', title: 'Donation Posted', time: '23 Apr, 10:00 AM', desc: 'Your donation was successfully posted on FoodBridge', icon: 'clock' },
+                                            { id: 'ACCEPTED', title: 'NGO Accepted', time: '23 Apr, 10:45 AM', desc: 'Helping Hands Foundation accepted your donation', icon: 'check-circle' },
+                                            { id: 'ASSIGNED', title: 'Volunteer Assigned', time: '23 Apr, 11:30 AM', desc: 'Amit Kumar assigned for pickup', icon: 'user-check' },
+                                            { id: 'IN_TRANSIT', title: 'Picked Up / In Transit', time: '23 Apr, 1:00 PM', desc: 'Food picked up, on the way to NGO warehouse', icon: 'truck' },
+                                            { id: 'DELIVERED', title: 'Delivered', time: 'Estimated: 2:30 PM', desc: 'Waiting for delivery confirmation', icon: 'heart' }
+                                        ].map((step, i) => {
+                                            const isCompleted = (status === 'DELIVERED') || 
+                                                              (status === 'IN_TRANSIT' && i < 3) || 
+                                                              (status === 'ACCEPTED' && i < 1) || 
+                                                              (i === 0);
+                                            const isActive = (status === 'PENDING' && i === 0) || 
+                                                           (status === 'ACCEPTED' && i === 1) ||
+                                                           (status === 'IN_TRANSIT' && i === 3) ||
+                                                           (status === 'DELIVERED' && i === 4);
+                                            
+                                            // Special handling for cancelled
+                                            if (status === 'CANCELLED' && i > 0) return null;
+
+                                            return (
+                                                <div key={i} className={`timeline-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}`}>
+                                                    <div className="timeline-marker">
+                                                        {isActive && <div className="ring"></div>}
+                                                        <Icon name={isCompleted ? 'check' : step.icon} size={20} />
+                                                    </div>
+                                                    <div className="timeline-line"></div>
+                                                    <div className="timeline-content">
+                                                        <div className="timeline-title">{step.title}</div>
+                                                        <div className="timeline-time">{step.time}</div>
+                                                        <div className="timeline-desc">{step.desc}</div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {status === 'DELIVERED' && (
+                                        <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+                                            <h2 style={{ color: 'var(--primary)' }}>Thank You! 🎉</h2>
+                                            <p style={{ color: 'var(--text-muted)' }}>Your donation reached those in need. You made a difference!</p>
+                                            <button className="btn-track" style={{ marginTop: '1.5rem' }} onClick={() => window.location.href='donation_form.html'}>Donate Again</button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Map & Cards */}
+                                {status === 'IN_TRANSIT' && (
+                                    <div className="map-section fade-in" style={{ animationDelay: '0.3s' }}>
+                                        {/* Status Bar */}
+                                        <div style={{ background: locStatus === 'ON' ? 'rgba(34, 197, 94, 0.1)' : locStatus === 'DETECTING' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: '1px solid', borderColor: locStatus === 'ON' ? 'var(--primary)' : locStatus === 'DETECTING' ? '#f59e0b' : '#ef4444', borderRadius: 'var(--radius-lg)', padding: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                {locStatus === 'ON' && <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)', animation: 'pulse 2s infinite' }}></span>}
+                                                {locStatus === 'DETECTING' && <span className="animate-spin" style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid #f59e0b', borderTopColor: 'transparent', borderRadius: '50%' }}></span>}
+                                                {locStatus === 'OFF' && <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ef4444' }}></span>}
+                                                <div>
+                                                    <div style={{ fontWeight: 700, color: locStatus === 'ON' ? 'var(--primary-dark)' : locStatus === 'DETECTING' ? '#d97706' : '#dc2626' }}>
+                                                        {locStatus === 'ON' && window.t('location_active')}
+                                                        {locStatus === 'DETECTING' && window.t('location_detecting')}
+                                                        {locStatus === 'OFF' && window.t('location_off')}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                                        {locStatus === 'ON' && `Last updated: ${lastUpdated}`}
+                                                        {locStatus === 'DETECTING' && 'Please wait...'}
+                                                        {locStatus === 'OFF' && `Last shared: ${lastUpdated}`}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {locStatus === 'ON' && (
+                                                <button onClick={fetchLocation} className="btn-outline" style={{ padding: '0.5rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                                                    <Icon name="refresh-cw" size={14} /> Refresh
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                            <h3 style={{ margin: 0, fontWeight: 800 }}>Live Tracking Map</h3>
+                                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                                <span className="badge" style={{ background: 'rgba(249, 115, 22, 0.1)', color: 'var(--status-transit)', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 700 }}>2.3 km distance</span>
+                                                <span className="badge" style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--primary)', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 700 }}>~15 mins ETA</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div ref={mapRef} style={{ height: '400px', width: '100%', borderRadius: '24px', zIndex: 1, border: '1px solid var(--border)', background: 'var(--surface-hover)' }}></div>
+                                        
+                                        <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                            <span>Map automatically updates every 30 seconds</span>
+                                            <button onClick={() => { if(mapInstanceRef.current && donorLoc) mapInstanceRef.current.setView(donorLoc, 15); }} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <Icon name="crosshair" size={14} /> Center on Donor
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="cards-grid fade-in" style={{ animationDelay: '0.4s' }}>
+                                    {/* Volunteer Card */}
+                                    {status !== 'PENDING' && status !== 'CANCELLED' && (
+                                        <div className="side-card">
+                                            <h3>Your Volunteer</h3>
+                                            <div className="profile-small">
+                                                <div className="avatar-circle" style={{ background: 'var(--primary)' }}>AK</div>
+                                                <div>
+                                                    <div style={{ fontWeight: 800 }}>Amit Kumar</div>
+                                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>⭐ 4.9 (67 deliveries)</div>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Status:</span>
+                                                <span style={{ color: 'var(--primary)', fontWeight: 700 }}>🟢 En Route</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Phone:</span>
+                                                <span style={{ fontWeight: 700 }}>+91 987XX XXXXX</span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                                <button className="btn-full btn-primary" style={{ flex: 2 }}>Call Volunteer</button>
+                                                <button className="btn-full btn-red-outline" style={{ flex: 1 }}>Report</button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* NGO Card */}
+                                    {status !== 'PENDING' && status !== 'CANCELLED' && (
+                                        <div className="side-card">
+                                            <h3>Receiving NGO</h3>
+                                            <div className="profile-small">
+                                                <div className="avatar-circle" style={{ background: '#3b82f6' }}>HH</div>
+                                                <div>
+                                                    <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        Helping Hands <Icon name="verified" size={14} color="#3b82f6" />
+                                                    </div>
+                                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Sector 12, Delhi</div>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Total Received:</span>
+                                                <span style={{ fontWeight: 700 }}>156 donations</span>
+                                            </div>
+                                            <button className="btn-full btn-outline">View NGO Profile</button>
+                                        </div>
+                                    )}
+
+                                    {/* Impact Card */}
+                                    <div className="side-card" style={{ background: 'rgba(34, 197, 94, 0.05)', borderColor: 'var(--primary)' }}>
+                                        <h3 style={{ color: 'var(--primary)' }}>Your donation will...</h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1rem', fontWeight: 600 }}>
+                                                <span style={{ fontSize: '1.5rem' }}>🍽️</span> Feed approximately 20 people
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1rem', fontWeight: 600 }}>
+                                                <span style={{ fontSize: '1.5rem' }}>🌱</span> Save 5kg of food from waste
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1rem', fontWeight: 600 }}>
+                                                <span style={{ fontSize: '1.5rem' }}>❤️</span> Help families in Sector 12
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Others List */}
+                                    <div className="side-card">
+                                        <h3>Your Other Donations</h3>
+                                        <div className="mini-list">
+                                            {[
+                                                { id: '#FB-00120', item: 'Bread', status: 'Completed' },
+                                                { id: '#FB-00115', item: 'Veg Thali', status: 'Completed' },
+                                                { id: '#FB-00098', item: 'Rice', status: 'Completed' }
+                                            ].map((item, idx) => (
+                                                <div key={idx} className="mini-item">
+                                                    <div>
+                                                        <div style={{ color: 'var(--primary)', fontSize: '0.75rem' }}>{item.id}</div>
+                                                        <div>{item.item}</div>
+                                                    </div>
+                                                    <span style={{ color: 'var(--primary)', fontSize: '0.8rem' }}>✅ {item.status}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <a href="donor_dashboard.html" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>View All Donations</a>
+                                    </div>
+                                </div>
+
+                                {/* Share Section */}
+                                <div className="side-card fade-in" style={{ animationDelay: '0.5s', textAlign: 'center' }}>
+                                    <h3>Share your donation journey! 🌍</h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Inspire others to join the mission of reducing food waste.</p>
+                                    <div className="share-row">
+                                        <button className="share-btn"><Icon name="message-circle" size={18} color="#25D366" /> WhatsApp</button>
+                                        <button className="share-btn"><Icon name="twitter" size={18} color="#1DA1F2" /> Twitter</button>
+                                        <button className="share-btn"><Icon name="copy" size={18} /> Copy Link</button>
+                                    </div>
+                                </div>
+                                
+                                {/* Status Switcher (For Demo Purposes) */}
+                                <div style={{ marginTop: '4rem', padding: '1rem', background: 'var(--surface)', borderRadius: '20px', border: '1px dashed var(--border)', textAlign: 'center' }}>
+                                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>DEMO ONLY: Switch donation states</p>
+                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                        {['PENDING', 'ACCEPTED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'].map(s => (
+                                            <button key={s} onClick={() => setStatus(s)} style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: status === s ? 'var(--primary)' : 'white', color: status === s ? 'white' : 'var(--text-main)', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>{s}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Mobile Bottom Nav */}
+                    <div className="bottom-nav">
+                        <a href="donor_dashboard.html" className="bottom-nav-item">
+                            <Icon name="layout-dashboard" size={24} />
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="donation_form.html" className="bottom-nav-item">
+                            <Icon name="plus-circle" size={24} />
+                            <span>Donate</span>
+                        </a>
+                        <a href="#" className="bottom-nav-item active">
+                            <Icon name="map-pin" size={24} />
+                            <span>Track</span>
+                        </a>
+                        <a href="profile.html" className="bottom-nav-item">
+                            <Icon name="user" size={24} />
+                            <span>Profile</span>
+                        </a>
+                        <a href="login.html" className="bottom-nav-item">
+                            <Icon name="log-out" size={24} />
+                            <span>Logout</span>
+                        </a>
+                    </div>
+
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)}>
+                        <Icon name={darkMode ? "sun" : "moon"} size={24} />
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

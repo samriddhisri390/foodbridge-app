@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodBridge | Pickup Schedule</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="lang.js"></script>
+
+    <style>
+        :root {
+            --primary: #22c55e;
+            --primary-rgb: 34, 197, 94;
+            --primary-dark: #16a34a;
+            --background: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.7);
+            --surface-solid: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: rgba(226, 232, 240, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            
+            --status-pending: #d97706;
+            --status-pending-bg: #fef3c7;
+            --status-accepted: #2563eb;
+            --status-accepted-bg: #dbeafe;
+            --status-completed: #16a34a;
+            --status-completed-bg: #dcfce7;
+            --status-cancelled: #dc2626;
+            --status-cancelled-bg: #fee2e2;
+        }
+
+        [data-theme="dark"] {
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --surface-solid: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(51, 65, 85, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+
+            --status-pending: #fcd34d;
+            --status-pending-bg: rgba(245, 158, 11, 0.2);
+            --status-accepted: #60a5fa;
+            --status-accepted-bg: rgba(59, 130, 246, 0.2);
+            --status-completed: #4ade80;
+            --status-completed-bg: rgba(34, 197, 94, 0.2);
+            --status-cancelled: #f87171;
+            --status-cancelled-bg: rgba(239, 68, 68, 0.2);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        * { box-sizing: border-box; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes numberUpdate { 0% { transform: scale(1); } 50% { transform: scale(1.1); color: var(--primary); } 100% { transform: scale(1); } }
+        
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .scale-up { animation: scaleUp 0.3s ease-out forwards; }
+        .slide-in-right { animation: slideInRight 0.4s ease-out backwards; }
+        .update-anim { animation: numberUpdate 0.5s ease-out; }
+
+        /* Layout */
+        .app-container { display: flex; height: 100vh; overflow: hidden; }
+
+        .sidebar {
+            width: 260px; background: var(--surface); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; position: relative; z-index: 50;
+        }
+        .sidebar.collapsed { width: 80px; }
+        .sidebar-header { height: 70px; display: flex; align-items: center; padding: 0 24px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
+        .sidebar-header h2 { margin-left: 12px; color: var(--primary); font-size: 20px; margin-top: 0; margin-bottom: 0; }
+
+        .nav-items { padding: 24px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .nav-item { display: flex; align-items: center; gap: 16px; padding: 12px; border-radius: 16px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; white-space: nowrap; overflow: hidden; text-decoration: none; }
+        .nav-item:hover { background: rgba(34, 197, 94, 0.1); color: var(--primary); }
+        .nav-item.active { background: var(--primary); color: white; }
+
+        .collapse-btn { position: absolute; right: -14px; top: 21px; width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.3s; }
+
+        .content-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        .navbar { height: 70px; background: var(--surface); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; z-index: 40; }
+        .navbar-left { display: none; align-items: center; }
+        .search-bar { display: flex; align-items: center; background: var(--background); border: 1px solid var(--border); border-radius: 99px; padding: 8px 16px; width: 300px; }
+        .search-bar input { border: none; background: transparent; outline: none; margin-left: 8px; color: var(--text-main); width: 100%; font-family: 'Outfit'; }
+        .nav-right { display: flex; align-items: center; gap: 24px; }
+        .notification-bell { position: relative; cursor: pointer; color: var(--text-muted); }
+        .badge-red { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 10px; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .user-profile img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+
+        .main-scroll { flex: 1; overflow-y: auto; padding: 32px; }
+
+        /* Page Layout */
+        .page-header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px; }
+        .page-header h1 { font-size: 32px; margin: 0 0 8px 0; }
+        .page-header p { color: var(--text-muted); margin: 0; }
+        
+        .date-nav { display: flex; gap: 12px; align-items: center; }
+        .current-date-display { margin: 0; font-size: 24px; font-weight: 700; width: 220px; text-align: center; }
+
+        .stats-chips { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+        .stat-chip { background: var(--surface); border: 1px solid var(--border); padding: 12px 20px; border-radius: 99px; display: flex; align-items: center; gap: 12px; box-shadow: var(--glass-shadow); }
+        .stat-chip-label { color: var(--text-muted); font-size: 14px; font-weight: 500; }
+        .stat-chip-value { font-weight: 700; font-size: 18px; color: var(--text-main); }
+
+        .schedule-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+
+        .card { background: var(--surface); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 24px; padding: 24px; box-shadow: var(--glass-shadow); }
+
+        .view-toggle { display: flex; background: var(--background); padding: 4px; border-radius: 12px; border: 1px solid var(--border); width: fit-content; margin-bottom: 24px; }
+        .toggle-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border: none; background: transparent; border-radius: 8px; font-family: 'Outfit'; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+        .toggle-btn.active { background: var(--primary); color: white; box-shadow: var(--shadow-sm); }
+
+        /* Hourly Timeline */
+        .hourly-timeline { display: flex; flex-direction: column; padding-top: 16px; }
+        .hour-row { display: flex; position: relative; min-height: 70px; }
+        .hour-label { width: 70px; flex-shrink: 0; text-align: right; padding-right: 16px; color: var(--text-muted); font-size: 13px; font-weight: 500; transform: translateY(-8px); }
+        .hour-line-container { flex: 1; position: relative; padding-bottom: 16px; border-left: 2px solid var(--border); padding-left: 24px; }
+        .hour-line { position: absolute; top: 0; left: 0; right: 0; height: 1px; background: var(--border); }
+
+        .pickup-card {
+            background: var(--surface-solid); border: 1px solid var(--border); border-left-width: 4px; border-radius: 16px; 
+            padding: 16px 20px; box-shadow: var(--shadow-sm); transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: -16px; margin-bottom: 16px; position: relative; z-index: 2;
+        }
+        .pickup-card:hover { transform: translateX(4px); box-shadow: var(--glass-shadow); }
+        .border-green { border-left-color: #22c55e; }
+        .border-yellow { border-left-color: #eab308; }
+        .border-orange { border-left-color: #f97316; }
+
+        .color-green { color: #16a34a; }
+        .color-yellow { color: #d97706; }
+        .color-orange { color: #ea580c; }
+
+        .card-header-flex { display: flex; justify-content: space-between; align-items: flex-start; }
+        .category-badge { background: var(--background); color: var(--text-main); border: 1px solid var(--border); padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 600; display: inline-block; margin-top: 4px; }
+
+        .btn-primary-sm { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; transition: all 0.2s; }
+        .btn-primary-sm:hover { background: var(--primary-dark); }
+        .btn-outline-sm { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; transition: all 0.2s; }
+        .btn-outline-sm:hover { background: var(--background); }
+        .btn-success-sm { background: #dcfce7; color: #16a34a; border: 1px solid #16a34a; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; transition: all 0.2s; }
+        .btn-success-sm:hover { background: #bbf7d0; }
+
+        /* List View */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-weight: 500; font-size: 14px; }
+        tbody tr:hover { background: rgba(34, 197, 94, 0.03); }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; }
+        .status-Upcoming { background: var(--status-pending-bg); color: var(--status-pending); }
+        .status-InTransit { background: rgba(249, 115, 22, 0.1); color: #ea580c; }
+        .status-Completed { background: var(--status-completed-bg); color: var(--status-completed); }
+        .btn-icon-action { background: var(--background); border: 1px solid var(--border); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; color: var(--text-main); }
+        .btn-icon-action:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* Upcoming Mini Calendar */
+        .mini-calendar { display: flex; justify-content: space-between; margin-bottom: 24px; }
+        .cal-day { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; border-radius: 12px; cursor: pointer; transition: all 0.2s; color: var(--text-muted); font-size: 14px; font-weight: 600; flex: 1; }
+        .cal-day:hover { background: rgba(34,197,94,0.05); color: var(--primary); }
+        .cal-day.active { background: var(--primary); color: white; box-shadow: var(--shadow-sm); }
+        .cal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+        .cal-day.active .cal-dot { background: white; }
+        .upcoming-item { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px dashed var(--border); }
+        .up-time { font-weight: 600; color: var(--text-main); font-size: 14px; width: 65px; }
+        .up-desc { color: var(--text-muted); font-size: 14px; }
+
+        /* Volunteers */
+        .vol-status-card { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); }
+        .avatar-small { width: 36px; height: 36px; border-radius: 50%; background: var(--surface-solid); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: var(--text-main); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot-green { background: #22c55e; }
+        .dot-red { background: #ef4444; }
+        .dot-grey { background: #94a3b8; }
+
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 200; }
+        .modal-content { background: var(--surface-solid); border-radius: 24px; width: 90%; max-width: 450px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2); }
+        .modal-header { padding: 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface-solid); z-index: 10; }
+        .modal-header h2 { margin: 0; font-size: 20px; }
+        .modal-body { padding: 24px; }
+        .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: all 0.2s; }
+        .btn-icon:hover { background: rgba(34, 197, 94, 0.1); color: var(--primary); }
+
+        .volunteer-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .volunteer-option { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+        .volunteer-option:hover:not(.disabled) { border-color: var(--primary); background: rgba(34,197,94,0.05); }
+        .volunteer-option.selected { border-color: var(--primary); background: rgba(34,197,94,0.1); }
+        .volunteer-option.disabled { opacity: 0.6; cursor: not-allowed; background: var(--background); }
+        .radio-circle { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; }
+        .volunteer-option.selected .radio-circle { border-color: var(--primary); }
+        .volunteer-option.selected .radio-circle::after { content: ''; width: 10px; height: 10px; background: var(--primary); border-radius: 50%; }
+
+        .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 10px 20px; border-radius: 99px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; transition: all 0.2s; }
+        .btn-outline:hover { background: var(--background); }
+        .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 99px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; transition: opacity 0.2s; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Bottom Nav */
+        .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); backdrop-filter: blur(16px); border-top: 1px solid var(--border); padding: 12px 16px; justify-content: space-around; z-index: 100; }
+        .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); font-size: 12px; cursor: pointer; transition: color 0.2s; text-decoration: none; }
+        .bottom-nav-item.active { color: var(--primary); }
+
+        .theme-toggle { position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); border: none; z-index: 1000; transition: transform 0.3s; }
+        .theme-toggle:hover { transform: scale(1.1) rotate(15deg); }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .schedule-layout { grid-template-columns: 1fr; }
+            .date-nav { width: 100%; justify-content: space-between; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .bottom-nav { display: flex; padding-bottom: env(safe-area-inset-bottom, 12px); }
+            .app-container { padding-bottom: 70px; }
+            .navbar { padding: 0 16px; }
+            .search-bar { display: none; }
+            .main-scroll { padding: 16px; }
+            .navbar-left { display: flex; }
+            .theme-toggle { bottom: 90px; }
+            .current-date-display { font-size: 20px; width: auto; }
+            .page-header h1 { font-size: 28px; }
+            .hour-label { width: 60px; padding-right: 12px; }
+            .hour-line-container { padding-left: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size = 24, color, className = '' }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current) {
+                    iconRef.current.innerHTML = '';
+                    const i = document.createElement('i');
+                    i.setAttribute('data-lucide', name);
+                    if (color) i.style.color = color;
+                    if (size) { i.style.width = size + 'px'; i.style.height = size + 'px'; }
+                    if (className) i.className = className;
+                    iconRef.current.appendChild(i);
+                    lucide.createIcons({ root: iconRef.current });
+                }
+            }, [name, color, size, className]);
+            return <span ref={iconRef} className={`icon-wrapper ${className}`} style={{ display: 'inline-flex', alignItems: 'center', justifyItems: 'center' }} />;
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+            const [viewMode, setViewMode] = useState('timeline');
+            const [currentDate, setCurrentDate] = useState(new Date());
+            
+            const [assignModalOpen, setAssignModalOpen] = useState(false);
+            const [completeModalOpen, setCompleteModalOpen] = useState(false);
+            const [selectedPickup, setSelectedPickup] = useState(null);
+            const [selectedVolunteerId, setSelectedVolunteerId] = useState('');
+            const [updateTrigger, setUpdateTrigger] = useState(0);
+
+            useEffect(() => {
+                document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+            }, [darkMode]);
+
+            const navItems = [
+                { name: "Overview", icon: "home", href: "ngo_dashboard.html" },
+                { name: "Available", icon: "package", href: "ngo_dashboard.html" },
+                { name: "Accepted", icon: "check-circle", href: "ngo_accepted.html" },
+                { name: "Schedule", icon: "calendar", href: "ngo_schedule.html" },
+                { name: "Volunteers", icon: "users", href: "#" },
+                { name: "Reports", icon: "bar-chart", href: "#" },
+                { name: "Profile", icon: "building", href: "#" }
+            ];
+
+            const initialPickups = [
+                { id: 1, time: "10:00 AM", food: "Biryani", qty: "5kg", category: "Cooked Food", donor: "Anonymous", address: "Sector 12, Delhi", distance: "2.1 km", volunteer: "Amit Kumar", status: "Completed", statusLevel: "green" },
+                { id: 2, time: "11:00 AM", food: "Dal Rice", qty: "3kg", category: "Cooked Food", donor: "Anonymous", address: "MG Road", distance: "1.5 km", volunteer: "Priya Singh", status: "Completed", statusLevel: "green" },
+                { id: 3, time: "2:00 PM", food: "Bread Packets", qty: "10 boxes", category: "Packaged Food", donor: "Anonymous", address: "Connaught Place", distance: "4.2 km", volunteer: "Not Assigned", status: "Upcoming", statusLevel: "yellow" },
+                { id: 4, time: "3:30 PM", food: "Mixed Vegetables", qty: "8kg", category: "Raw Vegetables", donor: "Anonymous", address: "Karol Bagh", distance: "3.8 km", volunteer: "Ravi Verma", status: "In Transit", statusLevel: "orange" },
+                { id: 5, time: "5:00 PM", food: "Cold Drinks", qty: "12 bottles", category: "Beverages", donor: "Anonymous", address: "Lajpat Nagar", distance: "5.5 km", volunteer: "Not Assigned", status: "Upcoming", statusLevel: "yellow" },
+            ];
+
+            const [pickups, setPickups] = useState(initialPickups);
+
+            const volunteers = [
+                { id: 1, name: "Amit Kumar", status: "Busy", tasks: 2, level: "red", available: false },
+                { id: 2, name: "Priya Singh", status: "Busy", tasks: 3, level: "red", available: false },
+                { id: 3, name: "Ravi Verma", status: "Available", tasks: 1, level: "green", available: true },
+                { id: 4, name: "Neha Gupta", status: "Available", tasks: 0, level: "green", available: true },
+                { id: 5, name: "Suresh Patel", status: "Off Duty", tasks: 0, level: "grey", available: false },
+            ];
+
+            const dateStr = currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const isToday = currentDate.toDateString() === new Date().toDateString();
+
+            const changeDate = (days) => {
+                const newDate = new Date(currentDate);
+                newDate.setDate(newDate.getDate() + days);
+                setCurrentDate(newDate);
+                if (days !== 0 && newDate.toDateString() !== new Date().toDateString()) {
+                    setPickups([]); // Show empty state for other days
+                } else {
+                    setPickups(initialPickups);
+                }
+            };
+
+            const openAssign = (p) => { setSelectedPickup(p); setSelectedVolunteerId(''); setAssignModalOpen(true); };
+            const openComplete = (p) => { setSelectedPickup(p); setCompleteModalOpen(true); };
+
+            const confirmAssign = () => {
+                const vol = volunteers.find(v => v.id === selectedVolunteerId);
+                if (vol && selectedPickup) {
+                    setPickups(prev => prev.map(p => p.id === selectedPickup.id ? { ...p, volunteer: vol.name } : p));
+                    triggerUpdate();
+                }
+                setAssignModalOpen(false);
+            };
+
+            const confirmComplete = () => {
+                if (selectedPickup) {
+                    setPickups(prev => prev.map(p => p.id === selectedPickup.id ? { ...p, status: "Completed", statusLevel: "green" } : p));
+                    triggerUpdate();
+                }
+                setCompleteModalOpen(false);
+            };
+
+            const triggerUpdate = () => {
+                setUpdateTrigger(prev => prev + 1);
+            };
+
+            const stats = {
+                total: pickups.length,
+                completed: pickups.filter(p => p.status === 'Completed').length,
+                pending: pickups.filter(p => p.status === 'Upcoming').length,
+                inTransit: pickups.filter(p => p.status === 'In Transit').length
+            };
+
+            const getStatusIcon = (status) => {
+                if (status === 'Completed') return "✅";
+                if (status === 'Upcoming') return "⏳";
+                if (status === 'In Transit') return "🚚";
+                return "";
+            };
+
+            const hours = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM'];
+            const daysShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const activeCalDay = 'Wed';
+
+            return (
+                <div className="app-container">
+                    <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+                        <a href="ngo_dashboard.html" className="sidebar-header" style={{ textDecoration: 'none' }}>
+                            <Icon name="heart" color="var(--primary)" size={28} />
+                            <h2>FoodBridge</h2>
+                        </a>
+                        <button className="collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} />
+                        </button>
+                        <div className="nav-items">
+                            {navItems.map(item => (
+                                <a key={item.name} href={item.href} className={`nav-item ${item.name === 'Schedule' ? 'active' : ''}`}>
+                                    <Icon name={item.icon} size={22} />
+                                    <span>{item.name}</span>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="content-wrapper">
+                        <div className="navbar">
+                            <div className="navbar-left">
+                                <Icon name="heart" color="var(--primary)" size={28} />
+                                <h2 style={{ marginLeft: '10px', color: 'var(--primary)', margin: 0, fontSize: '20px' }}>FoodBridge</h2>
+                            </div>
+                            <div className="search-bar" style={{ visibility: 'hidden' }}></div>
+                            <div className="nav-right">
+                                <div className="notification-bell" onClick={() => window.location.href='notifications.html'}>
+                                    <Icon name="bell" size={24} />
+                                    <span className="badge-red">5</span>
+                                </div>
+                                <div className="user-profile" onClick={() => window.location.href='profile.html'}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <img src="https://ui-avatars.com/api/?name=Helping+Hands&background=22c55e&color=fff" alt="NGO" />
+                                        <div className="hide-mobile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                            <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}>
+                                                Helping Hands Foundation <Icon name="check-circle-2" size={14} color="var(--primary)" />
+                                            </span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Verified NGO</span>
+                                        </div>
+                                        <Icon name="chevron-down" size={16} className="hide-mobile" />
+                                    </div>
+                                </div>
+                                <button className="btn-icon hide-mobile" onClick={() => window.location.href = 'login.html'}>
+                                    <Icon name="log-out" size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="main-scroll">
+                            <div className="page-header fade-in">
+                                <div>
+                                    <h1>Pickup Schedule</h1>
+                                    <p>Today's pickup timeline and upcoming schedule</p>
+                                </div>
+                                <div className="date-nav">
+                                    <button className="btn-outline-sm" onClick={() => changeDate(-1)}><Icon name="chevron-left" size={16}/> Previous Day</button>
+                                    <button className={`btn-primary-sm ${!isToday ? 'btn-outline-sm' : ''}`} style={!isToday ? {background:'transparent', color:'var(--text-main)'} : {}} onClick={() => {setCurrentDate(new Date()); setPickups(initialPickups);}}>Today</button>
+                                    <button className="btn-outline-sm" onClick={() => changeDate(1)}>Next Day <Icon name="chevron-right" size={16}/></button>
+                                </div>
+                            </div>
+
+                            <h2 className="current-date-display fade-in" style={{ width: '100%', textAlign: 'left', marginBottom: '24px' }}>{dateStr}</h2>
+
+                            <div className="stats-chips fade-in" key={updateTrigger}>
+                                <div className="stat-chip"><span className="stat-chip-label">Today's Pickups:</span> <span className="stat-chip-value update-anim">{stats.total}</span></div>
+                                <div className="stat-chip"><span className="stat-chip-label">Completed:</span> <span className="stat-chip-value update-anim">{stats.completed}</span></div>
+                                <div className="stat-chip"><span className="stat-chip-label">Pending:</span> <span className="stat-chip-value update-anim">{stats.pending}</span></div>
+                                <div className="stat-chip"><span className="stat-chip-label">In Transit:</span> <span className="stat-chip-value update-anim">{stats.inTransit}</span></div>
+                            </div>
+
+                            <div className="schedule-layout">
+                                {/* Left Col - Main Schedule */}
+                                <div className="card fade-in" style={{ padding: '32px 24px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                        <h2 style={{ margin: 0, fontSize: '20px' }}>Schedule</h2>
+                                        <div className="view-toggle" style={{ margin: 0 }}>
+                                            <button className={`toggle-btn ${viewMode === 'timeline' ? 'active' : ''}`} onClick={() => setViewMode('timeline')}>
+                                                <Icon name="calendar-days" size={16} /> <span className="hide-mobile">Timeline View</span>
+                                            </button>
+                                            <button className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}>
+                                                <Icon name="list" size={16} /> <span className="hide-mobile">List View</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {pickups.length === 0 ? (
+                                        <div className="empty-state" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+                                            <Icon name="calendar-x" size={64} color="var(--border)" style={{ marginBottom: '16px' }} />
+                                            <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', color: 'var(--text-main)' }}>No pickups scheduled</h3>
+                                            <p style={{ margin: '0 0 24px 0' }}>There are no pickups scheduled for this date.</p>
+                                            <button className="btn-primary-sm" onClick={() => window.location.href='ngo_dashboard.html'}>View Available Donations</button>
+                                        </div>
+                                    ) : viewMode === 'timeline' ? (
+                                        <div className="hourly-timeline">
+                                            {hours.map((time, hIdx) => {
+                                                const hourPickups = pickups.filter(p => {
+                                                    const h1 = time.split(':')[0];
+                                                    const ampm1 = time.split(' ')[1];
+                                                    const h2 = p.time.split(':')[0]; 
+                                                    const ampm2 = p.time.split(' ')[1]; 
+                                                    return h1 === h2 && ampm1 === ampm2;
+                                                });
+
+                                                return (
+                                                    <div key={time} className="hour-row">
+                                                        <div className="hour-label">{time}</div>
+                                                        <div className="hour-line-container">
+                                                            <div className="hour-line"></div>
+                                                            {hourPickups.map((p, index) => (
+                                                                <div key={p.id} className={`pickup-card slide-in-right border-${p.statusLevel}`} style={{ animationDelay: `${(hIdx * 0.05) + (index * 0.1)}s` }}>
+                                                                    <div className="card-header-flex">
+                                                                        <div>
+                                                                            <h3 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>{p.food} <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '15px' }}>({p.qty})</span></h3>
+                                                                            <span className="category-badge">{p.category}</span>
+                                                                        </div>
+                                                                        <div className={`color-${p.statusLevel}`} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, background: 'var(--background)', padding: '6px 12px', borderRadius: '99px', fontSize: '13px' }}>
+                                                                            {getStatusIcon(p.status)} {p.status}
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', margin: '20px 0', fontSize: '14px' }}>
+                                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                                                                            <div style={{ background: 'var(--background)', padding: '8px', borderRadius: '8px', color: 'var(--text-muted)' }}><Icon name="map-pin" size={16} /></div>
+                                                                            <div>
+                                                                                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '2px' }}>Donor Address</div>
+                                                                                <div style={{ fontWeight: 500 }}>{p.donor} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({p.address})</span></div>
+                                                                                <div style={{ fontSize: '12px', color: 'var(--primary)', marginTop: '2px', fontWeight: 500 }}>{p.distance} estimated</div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                                                                            <div style={{ background: 'var(--background)', padding: '8px', borderRadius: '8px', color: 'var(--text-muted)' }}><Icon name="user" size={16} /></div>
+                                                                            <div>
+                                                                                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '2px' }}>Assigned Volunteer</div>
+                                                                                <div style={{ fontWeight: 500, color: p.volunteer === 'Not Assigned' ? '#ef4444' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                                    {p.volunteer} {p.volunteer === 'Not Assigned' && '⚠️'}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid var(--border)', paddingTop: '16px', flexWrap: 'wrap' }}>
+                                                                        {p.volunteer === 'Not Assigned' && (
+                                                                            <button className="btn-primary-sm" onClick={() => openAssign(p)}><Icon name="user-plus" size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Assign Volunteer</button>
+                                                                        )}
+                                                                        <button className="btn-outline-sm"><Icon name="eye" size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> View Details</button>
+                                                                        {p.status === 'In Transit' && (
+                                                                            <button className="btn-success-sm" onClick={() => openComplete(p)}><Icon name="check" size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }}/> Mark Complete</button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="table-responsive fade-in">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Time</th>
+                                                        <th>Food Item</th>
+                                                        <th>Pickup Address</th>
+                                                        <th>Volunteer</th>
+                                                        <th>Status</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {pickups.map(p => (
+                                                        <tr key={p.id}>
+                                                            <td style={{ fontWeight: 600 }}>{p.time}</td>
+                                                            <td><div>{p.food}</div><div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.qty}</div></td>
+                                                            <td>{p.address}</td>
+                                                            <td style={{ color: p.volunteer === 'Not Assigned' ? '#ef4444' : 'inherit' }}>{p.volunteer}</td>
+                                                            <td><span className={`badge status-${p.status.replace(' ', '')}`}>{p.status}</span></td>
+                                                            <td>
+                                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                                    {p.volunteer === 'Not Assigned' && <button className="btn-icon-action" onClick={() => openAssign(p)} title="Assign"><Icon name="user-plus" size={16}/></button>}
+                                                                    <button className="btn-icon-action" title="View"><Icon name="eye" size={16}/></button>
+                                                                    {p.status === 'In Transit' && <button className="btn-icon-action" onClick={() => openComplete(p)} title="Complete" style={{ color: '#16a34a', borderColor: '#16a34a' }}><Icon name="check" size={16}/></button>}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right Col */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                    <div className="card fade-in">
+                                        <h3 style={{ margin: '0 0 16px 0', fontSize: '18px' }}>Upcoming — Next 7 Days</h3>
+                                        <div className="mini-calendar">
+                                            {daysShort.map(day => (
+                                                <div key={day} className={`cal-day ${day === activeCalDay ? 'active' : ''}`}>
+                                                    <div>{day}</div>
+                                                    {['Wed', 'Thu', 'Sat'].includes(day) && <div className="cal-dot"></div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        
+                                        <div className="upcoming-list">
+                                            <h4 style={{ color: 'var(--text-muted)', fontSize: '13px', textTransform: 'uppercase', marginBottom: '12px', marginTop: 0 }}>Tomorrow</h4>
+                                            <div className="upcoming-item">
+                                                <div className="up-time">9:00 AM</div>
+                                                <div className="up-desc">Rice Packets (20kg)</div>
+                                            </div>
+                                            <div className="upcoming-item">
+                                                <div className="up-time">2:00 PM</div>
+                                                <div className="up-desc">Fresh Fruits (6kg)</div>
+                                            </div>
+                                            
+                                            <h4 style={{ color: 'var(--text-muted)', fontSize: '13px', textTransform: 'uppercase', margin: '24px 0 12px 0' }}>Day After</h4>
+                                            <div className="upcoming-item">
+                                                <div className="up-time">11:00 AM</div>
+                                                <div className="up-desc">Cooked Food (4kg)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="card fade-in">
+                                        <h3 style={{ margin: '0 0 16px 0', fontSize: '18px' }}>Volunteer Status Today</h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            {volunteers.map((v, i) => (
+                                                <div key={i} className="vol-status-card">
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        <div className="avatar-small">{v.name.charAt(0)}</div>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600, fontSize: '14px' }}>{v.name}</div>
+                                                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                                                <div className={`status-dot dot-${v.level}`}></div>
+                                                                {v.status} {v.tasks > 0 && `(${v.tasks} tasks)`}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {v.available && (
+                                                        <button className="btn-outline-sm" style={{ padding: '6px 12px', fontSize: '12px' }}>Assign</button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bottom-nav">
+                        {navItems.slice(0, 5).map(item => (
+                            <a key={item.name} href={item.href} className={`bottom-nav-item ${item.name === 'Schedule' ? 'active' : ''}`}>
+                                <Icon name={item.icon} size={24} />
+                                <span>{item.name}</span>
+                            </a>
+                        ))}
+                    </div>
+
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)}>
+                        <Icon name={darkMode ? "sun" : "moon"} size={24} />
+                    </button>
+
+                    {/* Assign Volunteer Modal */}
+                    {assignModalOpen && selectedPickup && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up">
+                                <div className="modal-header">
+                                    <div>
+                                        <h2>Assign Volunteer</h2>
+                                        <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>for {selectedPickup.food}</p>
+                                    </div>
+                                    <button className="btn-icon" onClick={() => setAssignModalOpen(false)}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                <div className="modal-body">
+                                    <div className="volunteer-list">
+                                        {volunteers.filter(v => v.available).map(v => (
+                                            <div key={v.id} className={`volunteer-option ${selectedVolunteerId === v.id ? 'selected' : ''}`} onClick={() => setSelectedVolunteerId(v.id)}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div className="avatar-small">{v.name.charAt(0)}</div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600 }}>{v.name}</div>
+                                                        <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Available | {v.tasks} active tasks</div>
+                                                    </div>
+                                                </div>
+                                                <div className="radio-circle"></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ marginTop: '24px', padding: '12px 16px', background: 'var(--background)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px' }}>
+                                        <Icon name="clock" size={16} color="var(--primary)" />
+                                        <span>Pickup scheduled at <strong>{selectedPickup.time}</strong></span>
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button className="btn-outline" onClick={() => setAssignModalOpen(false)}>Cancel</button>
+                                        <button className="btn-primary" onClick={confirmAssign} disabled={!selectedVolunteerId}>Assign Volunteer</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mark Complete Modal */}
+                    {completeModalOpen && selectedPickup && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up" style={{ maxWidth: '400px' }}>
+                                <div className="modal-header" style={{ borderBottom: 'none', paddingBottom: '0' }}>
+                                    <h2>Complete Pickup</h2>
+                                    <button className="btn-icon" onClick={() => setCompleteModalOpen(false)}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                <div className="modal-body" style={{ textAlign: 'center', paddingTop: '12px' }}>
+                                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                                        <Icon name="check-circle-2" size={32} />
+                                    </div>
+                                    <p style={{ fontSize: '16px', margin: '0 0 8px 0' }}>Mark pickup as complete?</p>
+                                    <p style={{ fontWeight: 600, fontSize: '18px', margin: '0 0 4px 0' }}>{selectedPickup.food}</p>
+                                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '0 0 24px 0' }}>Volunteer: {selectedPickup.volunteer}</p>
+                                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                                        <button className="btn-outline" onClick={() => setCompleteModalOpen(false)}>Cancel</button>
+                                        <button className="btn-primary" onClick={confirmComplete} style={{ background: '#16a34a' }}>Yes, Completed ✓</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

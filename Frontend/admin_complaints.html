@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodBridge Admin | Complaints Management</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Translations & Global Functions -->
+    <script src="lang.js"></script>
+
+    <style>
+        :root {
+            --primary: #22c55e;
+            --primary-rgb: 34, 197, 94;
+            --primary-dark: #16a34a;
+            --background: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.7);
+            --surface-solid: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: rgba(226, 232, 240, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+            
+            --admin-purple: #8b5cf6;
+            --admin-purple-bg: #f5f3ff;
+            
+            --status-open: #ef4444;
+            --status-open-bg: #fee2e2;
+            --status-review: #f59e0b;
+            --status-review-bg: #fef3c7;
+            --status-resolved: #22c55e;
+            --status-resolved-bg: #dcfce7;
+            
+            --priority-high: #ef4444;
+            --priority-high-bg: #fee2e2;
+            --priority-medium: #f59e0b;
+            --priority-medium-bg: #fef3c7;
+            --priority-low: #22c55e;
+            --priority-low-bg: #dcfce7;
+
+            --issue-food: #f97316;
+            --issue-food-bg: rgba(249, 115, 22, 0.1);
+            --issue-pickup: #eab308;
+            --issue-pickup-bg: rgba(234, 179, 8, 0.1);
+            --issue-noshow: #ef4444;
+            --issue-noshow-bg: rgba(239, 68, 68, 0.1);
+            --issue-fraud: #8b5cf6;
+            --issue-fraud-bg: rgba(139, 92, 246, 0.1);
+            --issue-other: #64748b;
+            --issue-other-bg: rgba(100, 116, 139, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --surface-solid: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(51, 65, 85, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            
+            --admin-purple-bg: rgba(139, 92, 246, 0.2);
+            --status-open-bg: rgba(239, 68, 68, 0.2);
+            --status-review-bg: rgba(245, 158, 11, 0.2);
+            --status-resolved-bg: rgba(34, 197, 94, 0.2);
+            
+            --priority-high-bg: rgba(239, 68, 68, 0.2);
+            --priority-medium-bg: rgba(245, 158, 11, 0.2);
+            --priority-low-bg: rgba(34, 197, 94, 0.2);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        * { box-sizing: border-box; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
+        .scale-up { animation: scaleUp 0.3s ease-out forwards; }
+        .slide-up { animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
+        .slide-down { animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .fade-out { animation: fadeIn 0.3s ease-out reverse forwards; }
+        
+        /* Layout Structure */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 50;
+        }
+        .sidebar.collapsed { width: 80px; }
+
+        .sidebar-header {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+        }
+        .sidebar-header h2 { margin-left: 12px; color: var(--primary); font-size: 20px; margin-top: 0; margin-bottom: 0; }
+
+        .nav-items {
+            padding: 24px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            border-radius: 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+        }
+        .nav-item:hover { background: rgba(34, 197, 94, 0.1); color: var(--primary); }
+        .nav-item.active { background: var(--primary); color: white; }
+
+        .collapse-btn {
+            position: absolute;
+            right: -14px;
+            top: 21px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Navbar */
+        .navbar {
+            height: 70px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 40;
+        }
+
+        .navbar-left { display: none; align-items: center; gap: 10px; }
+        .navbar-left i { color: var(--primary); }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .role-badge {
+            background: var(--admin-purple-bg);
+            color: var(--admin-purple);
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .icon-btn:hover { background: rgba(34, 197, 94, 0.1); color: var(--primary); }
+        .notification-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 2px solid var(--surface-solid);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 4px;
+            padding-right: 12px;
+            border-radius: 99px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .user-profile:hover { background: var(--background); }
+        .user-profile img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+        }
+
+        .main-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        /* Stats Row */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+        }
+        .stat-card {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--glass-shadow);
+            transition: transform 0.3s;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .stat-info h3 { margin: 0; font-size: 24px; font-weight: 800; }
+        .stat-info p { margin: 4px 0 0 0; color: var(--text-muted); font-size: 14px; font-weight: 500; }
+
+        /* Filter Bar */
+        .filter-section {
+            background: var(--surface-solid);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+        .search-container {
+            flex: 1;
+            min-width: 250px;
+            display: flex;
+            align-items: center;
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 16px;
+        }
+        .search-container input {
+            border: none;
+            background: transparent;
+            outline: none;
+            margin-left: 10px;
+            color: var(--text-main);
+            width: 100%;
+            font-family: inherit;
+        }
+        .filter-select {
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--background);
+            color: var(--text-main);
+            font-family: inherit;
+            outline: none;
+            min-width: 150px;
+        }
+
+        /* Bulk Actions Bar */
+        .bulk-actions-bar {
+            position: absolute;
+            top: 70px;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 45;
+        }
+        .bulk-btns { display: flex; gap: 12px; }
+        .btn-white { padding: 8px 16px; border-radius: 10px; border: none; background: white; color: var(--primary); font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; font-family: inherit; }
+        .btn-white-outline { padding: 8px 16px; border-radius: 10px; border: 1.5px solid white; background: transparent; color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; font-family: inherit; }
+
+        /* Tables */
+        .table-section {
+            background: var(--surface-solid);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            padding: 32px;
+            box-shadow: var(--shadow-lg);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 16px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 15px; }
+        tr:last-child td { border-bottom: none; }
+        
+        tr.selected { background: rgba(var(--primary-rgb), 0.05); }
+
+        .badge { padding: 6px 12px; border-radius: 99px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+        .status-badge.open { background: var(--status-open-bg); color: var(--status-open); }
+        .status-badge.review { background: var(--status-review-bg); color: var(--status-review); }
+        .status-badge.resolved { background: var(--status-resolved-bg); color: var(--status-resolved); }
+        
+        .priority-badge.high { background: var(--priority-high-bg); color: var(--priority-high); }
+        .priority-badge.medium { background: var(--priority-medium-bg); color: var(--priority-medium); }
+        .priority-badge.low { background: var(--priority-low-bg); color: var(--priority-low); }
+
+        .issue-badge { font-weight: 600; }
+
+        .action-btns { display: flex; gap: 8px; }
+        .btn-sm { padding: 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--background); color: var(--text-muted); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-sm:hover { border-color: var(--primary); color: var(--primary); background: rgba(34, 197, 94, 0.05); }
+
+        /* Mobile Cards */
+        .mobile-cards { display: none; flex-direction: column; gap: 16px; }
+        .complaint-card-mobile {
+            background: var(--surface-solid);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--surface-solid);
+            border-radius: 32px;
+            width: 95%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            padding: 32px;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .modal-close { background: var(--background); border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        
+        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .info-card { background: var(--background); padding: 20px; border-radius: 20px; border: 1px solid var(--border); }
+        
+        .evidence-grid { display: flex; gap: 12px; margin-top: 12px; }
+        .evidence-thumb { width: 80px; height: 80px; border-radius: 12px; background: #e2e8f0; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+
+        textarea { width: 100%; border-radius: 12px; border: 1px solid var(--border); background: var(--background); color: var(--text-main); padding: 12px; font-family: inherit; resize: vertical; min-height: 100px; outline: none; }
+        textarea:focus { border-color: var(--primary); }
+
+        .btn-primary { padding: 12px 24px; border-radius: 12px; border: none; background: var(--primary); color: white; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline { padding: 12px 24px; border-radius: 12px; border: 1.5px solid var(--border); background: transparent; color: var(--text-main); font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        
+        .status-update-row { display: flex; align-items: center; gap: 16px; background: var(--background); padding: 16px; border-radius: 16px; margin-top: 24px; }
+
+        .modal-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; border-top: 1px solid var(--border); padding-top: 24px; }
+
+        /* Pagination */
+        .pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+        
+        /* Empty State */
+        .empty-state { text-align: center; padding: 60px 20px; }
+        .empty-state i { font-size: 64px; color: var(--primary); margin-bottom: 24px; }
+
+        /* Mobile Bottom Nav */
+        .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border);
+            padding: 12px 0;
+            justify-content: space-around;
+            z-index: 100;
+        }
+        .bottom-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .bottom-nav-item.active { color: var(--primary); }
+
+        .theme-toggle {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+            border: none;
+            z-index: 1000;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar { display: none; }
+            .navbar-left { display: flex; }
+            .bottom-nav { display: flex; padding-bottom: env(safe-area-inset-bottom, 12px); }
+            .app-container { padding-bottom: 70px; }
+            .theme-toggle { bottom: 90px; }
+            .modal-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .table-section { display: none; }
+            .mobile-cards { display: flex; }
+            .filter-section { flex-direction: column; align-items: stretch; }
+            .search-container { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size = 24, color, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current) {
+                    iconRef.current.innerHTML = "";
+                    const i = document.createElement("i");
+                    i.setAttribute("data-lucide", name);
+                    if (color) i.style.color = color;
+                    if (size) { i.style.width = size + "px"; i.style.height = size + "px"; }
+                    if (className) i.className = className;
+                    iconRef.current.appendChild(i);
+                    lucide.createIcons({ root: iconRef.current });
+                }
+            }, [name, color, size, className]);
+            return <span ref={iconRef} className={`icon-wrapper ${className}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }} />;
+        };
+
+        const LanguageSwitcher = () => {
+            const [lang, setLang] = useState(window.getLang());
+            const toggleLang = (newLang) => {
+                window.setLang(newLang);
+                setLang(newLang);
+                window.location.reload();
+            };
+            return (
+                <div className="lang-switcher" style={{ display: 'flex', gap: '4px', background: 'var(--surface)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'english' ? 'var(--primary)' : 'transparent', color: lang === 'english' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('english')}>🇬🇧 EN</button>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'hindi' ? 'var(--primary)' : 'transparent', color: lang === 'hindi' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('hindi')}>🇮🇳 HI</button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+            const [searchQuery, setSearchQuery] = useState('');
+            const [statusFilter, setStatusFilter] = useState('All');
+            const [typeFilter, setTypeFilter] = useState('All');
+            const [selectedRows, setSelectedRows] = useState([]);
+            const [modal, setModal] = useState({ open: false, type: '', data: null });
+            
+            const [complaints, setComplaints] = useState([
+                { id: "#CP-001", by: "Rahul Sharma", byRole: "Donor", against: "Helping Hands NGO", againstRole: "NGO", issue: "Late Pickup", date: "23 Apr 2026", priority: "High", status: "Open", desc: "The NGO volunteer arrived 2 hours late for pickup. Food had already spoiled by then." },
+                { id: "#CP-002", by: "Priya Singh", byRole: "Donor", against: "Food For All NGO", againstRole: "NGO", issue: "No Show", date: "22 Apr 2026", priority: "High", status: "Open", desc: "I waited for 3 hours but nobody showed up to collect the surplus food." },
+                { id: "#CP-003", by: "Helping Hands NGO", byRole: "NGO", against: "Amit Kumar", againstRole: "Donor", issue: "Food Quality", date: "21 Apr 2026", priority: "Medium", status: "In Review", desc: "The quality of food delivered was not up to the mark. It smelled stale." },
+                { id: "#CP-004", by: "Neha Gupta", byRole: "Donor", against: "Care & Share NGO", againstRole: "NGO", issue: "Late Pickup", date: "20 Apr 2026", priority: "Medium", status: "In Review", desc: "Volunteer arrived late. Please ensure timely pickups." },
+                { id: "#CP-005", by: "Ravi Verma", byRole: "Donor", against: "Meal Mission NGO", againstRole: "NGO", issue: "Fraud", date: "19 Apr 2026", priority: "High", status: "In Review", desc: "Suspicious activity reported regarding the donation distribution." },
+                { id: "#CP-006", by: "Food For All NGO", byRole: "NGO", against: "Suresh Patel", againstRole: "Donor", issue: "Food Quality", date: "18 Apr 2026", priority: "Low", status: "Resolved", desc: "Issue resolved. Donor promised to be more careful with packaging." },
+                { id: "#CP-007", by: "Anjali Mehta", byRole: "Donor", against: "Hope Kitchen NGO", againstRole: "NGO", issue: "No Show", date: "17 Apr 2026", priority: "Medium", status: "Resolved", desc: "Followed up with the NGO. It was a communication gap." },
+                { id: "#CP-008", by: "Vikram Shah", byRole: "Donor", against: "Helping Hands NGO", againstRole: "NGO", issue: "Other", date: "16 Apr 2026", priority: "Low", status: "Resolved", desc: "Minor disagreement over pickup location." }
+            ]);
+
+            useEffect(() => {
+                document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+            }, [darkMode]);
+
+            const filteredComplaints = complaints.filter(c => {
+                const matchesSearch = c.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                     c.by.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                     c.issue.toLowerCase().includes(searchQuery.toLowerCase());
+                const matchesStatus = statusFilter === 'All' || c.status === statusFilter;
+                const matchesType = typeFilter === 'All' || c.issue === typeFilter;
+                return matchesSearch && matchesStatus && matchesType;
+            });
+
+            const stats = [
+                { label: "Total Complaints", value: complaints.length, icon: "inbox", color: "#64748b", bg: "rgba(100, 116, 139, 0.1)" },
+                { label: "Open", value: complaints.filter(c => c.status === 'Open').length, icon: "alert-circle", color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)" },
+                { label: "In Review", value: complaints.filter(c => c.status === 'In Review').length, icon: "clock", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)" },
+                { label: "Resolved", value: complaints.filter(c => c.status === 'Resolved').length, icon: "check-circle", color: "#22c55e", bg: "rgba(34, 197, 94, 0.1)" }
+            ];
+
+            const toggleSelectAll = () => {
+                if (selectedRows.length === filteredComplaints.length) setSelectedRows([]);
+                else setSelectedRows(filteredComplaints.map(c => c.id));
+            };
+
+            const toggleSelectRow = (id) => {
+                if (selectedRows.includes(id)) setSelectedRows(prev => prev.filter(r => r !== id));
+                else setSelectedRows(prev => [...prev, id]);
+            };
+
+            const updateStatus = (id, newStatus) => {
+                setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+                setModal({ open: false, type: '', data: null });
+            };
+
+            const dismissComplaint = (id) => {
+                setComplaints(prev => prev.filter(c => c.id !== id));
+                setModal({ open: false, type: '', data: null });
+            };
+
+            return (
+                <div className="app-container">
+                    {/* Sidebar */}
+                    <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+                        <a href="admin_panel.html" className="sidebar-header">
+                            <Icon name="heart" color="var(--primary)" size={28} />
+                            <h2>FoodBridge</h2>
+                        </a>
+                        <button className="collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} />
+                        </button>
+                        <div className="nav-items">
+                            <a href="admin_panel.html" className="nav-item">
+                                <Icon name="layout-dashboard" size={22} />
+                                <span>Overview</span>
+                            </a>
+                            <a href="#" className="nav-item">
+                                <Icon name="users" size={22} />
+                                <span>Users</span>
+                            </a>
+                            <a href="#" className="nav-item">
+                                <Icon name="package" size={22} />
+                                <span>Donations</span>
+                            </a>
+                            <a href="#" className="nav-item">
+                                <Icon name="building" size={22} />
+                                <span>NGOs</span>
+                            </a>
+                            <a href="admin_analytics.html" className="nav-item">
+                                <Icon name="bar-chart" size={22} />
+                                <span>Analytics</span>
+                            </a>
+                            <a href="admin_complaints.html" className="nav-item active">
+                                <Icon name="alert-triangle" size={22} />
+                                <span>Complaints</span>
+                            </a>
+                            <a href="#" className="nav-item">
+                                <Icon name="settings" size={22} />
+                                <span>Settings</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="content-wrapper">
+                        {/* Navbar */}
+                        <div className="navbar">
+                            <div className="navbar-left">
+                                <Icon name="heart" size={24} />
+                                <h2 style={{ fontSize: '18px', fontWeight: 800 }}>FoodBridge</h2>
+                            </div>
+                            <div className="nav-right">
+                                <LanguageSwitcher />
+                                <span className="role-badge hide-mobile">Super Admin</span>
+                                <button className="icon-btn" onClick={() => window.location.href='notifications.html'}>
+                                    <Icon name="bell" size={24} />
+                                    <span className="notification-badge">7</span>
+                                </button>
+                                <div className="user-profile" onClick={() => window.location.href = 'profile.html'}>
+                                    <img src="https://ui-avatars.com/api/?name=Super+Admin&background=8b5cf6&color=fff" alt="Admin" />
+                                    <span style={{ fontWeight: 700, fontSize: '14px' }} className="hide-mobile">Super Admin</span>
+                                </div>
+                                <button className="icon-btn" onClick={() => window.location.href='login.html'} title="Logout">
+                                    <Icon name="log-out" size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Bulk Actions Bar */}
+                        {selectedRows.length > 0 && (
+                            <div className="bulk-actions-bar slide-down">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                    <button className="btn-sm" style={{ background: 'white', color: 'var(--primary)' }} onClick={() => setSelectedRows([])}><Icon name="x" size={16} /></button>
+                                    <span style={{ fontWeight: 800 }}>{selectedRows.length} Complaints Selected</span>
+                                </div>
+                                <div className="bulk-btns">
+                                    <button className="btn-white" onClick={() => {
+                                        setComplaints(prev => prev.map(c => selectedRows.includes(c.id) ? { ...c, status: 'Resolved' } : c));
+                                        setSelectedRows([]);
+                                    }}>
+                                        <Icon name="check" size={18} /> Mark Resolved
+                                    </button>
+                                    <button className="btn-white-outline" onClick={() => {
+                                        setComplaints(prev => prev.filter(c => !selectedRows.includes(c.id)));
+                                        setSelectedRows([]);
+                                    }}>
+                                        <Icon name="trash" size={18} /> Dismiss Selected
+                                    </button>
+                                    <button className="btn-white-outline"><Icon name="download" size={18} /> Export</button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="main-scroll">
+                            {/* Page Header */}
+                            <div className="slide-up">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <h1 style={{ fontSize: '32px', fontWeight: 800, margin: '0 0 8px 0' }}>Complaints Management</h1>
+                                        <p style={{ color: 'var(--text-muted)', fontWeight: 500, margin: 0 }}>Handle and resolve user complaints</p>
+                                    </div>
+                                    <button className="btn-outline">
+                                        <Icon name="download" size={18} /> Export Complaints
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Stats Chips */}
+                            <div className="stats-grid slide-up" style={{ animationDelay: '0.1s' }}>
+                                {stats.map((stat, i) => (
+                                    <div key={i} className="stat-card">
+                                        <div className="stat-icon-box" style={{ background: stat.bg, color: stat.color }}>
+                                            <Icon name={stat.icon} size={24} />
+                                        </div>
+                                        <div className="stat-info">
+                                            <h3>{stat.value}</h3>
+                                            <p>{stat.label}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Filters */}
+                            <div className="filter-section slide-up" style={{ animationDelay: '0.2s' }}>
+                                <div className="search-container">
+                                    <Icon name="search" size={18} color="var(--text-muted)" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search by ID, name, or issue..." 
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                                    <option value="All">All Status</option>
+                                    <option value="Open">Open</option>
+                                    <option value="In Review">In Review</option>
+                                    <option value="Resolved">Resolved</option>
+                                </select>
+                                <select className="filter-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                                    <option value="All">All Issue Types</option>
+                                    <option value="Food Quality">Food Quality</option>
+                                    <option value="Late Pickup">Late Pickup</option>
+                                    <option value="No Show">No Show</option>
+                                    <option value="Fraud">Fraud</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <select className="filter-select">
+                                    <option>This Week</option>
+                                    <option>Today</option>
+                                    <option>This Month</option>
+                                </select>
+                                <select className="filter-select">
+                                    <option>Sort by: Latest</option>
+                                    <option>Oldest</option>
+                                    <option>Priority</option>
+                                </select>
+                            </div>
+
+                            {/* Complaints Content */}
+                            {filteredComplaints.length > 0 ? (
+                                <div className="slide-up" style={{ animationDelay: '0.3s' }}>
+                                    {/* Desktop Table */}
+                                    <div className="table-section">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={selectedRows.length === filteredComplaints.length && filteredComplaints.length > 0} 
+                                                            onChange={toggleSelectAll} 
+                                                        />
+                                                    </th>
+                                                    <th>ID</th>
+                                                    <th>Reported By</th>
+                                                    <th>Against</th>
+                                                    <th>Issue Type</th>
+                                                    <th>Date</th>
+                                                    <th>Priority</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filteredComplaints.map((c, i) => (
+                                                    <tr key={c.id} className={`${selectedRows.includes(c.id) ? 'selected' : ''}`} style={{ transition: 'all 0.3s' }}>
+                                                        <td>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={selectedRows.includes(c.id)} 
+                                                                onChange={() => toggleSelectRow(c.id)} 
+                                                            />
+                                                        </td>
+                                                        <td style={{ fontWeight: 800, color: 'var(--primary)' }}>{c.id}</td>
+                                                        <td>
+                                                            <div style={{ fontWeight: 600 }}>{c.by}</div>
+                                                            <span className="role-badge" style={{ fontSize: '10px', padding: '2px 8px' }}>{c.byRole}</span>
+                                                        </td>
+                                                        <td>
+                                                            <div style={{ fontWeight: 600 }}>{c.against}</div>
+                                                            <span className="role-badge" style={{ fontSize: '10px', padding: '2px 8px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>{c.againstRole}</span>
+                                                        </td>
+                                                        <td>
+                                                            <span className={`badge issue-badge`} style={{ 
+                                                                background: `var(--issue-${c.issue.toLowerCase().replace(' ', '')}-bg)`,
+                                                                color: `var(--issue-${c.issue.toLowerCase().replace(' ', '')})`
+                                                            }}>{c.issue}</span>
+                                                        </td>
+                                                        <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{c.date}</td>
+                                                        <td>
+                                                            <span className={`badge priority-badge ${c.priority.toLowerCase()}`}>{c.priority}</span>
+                                                        </td>
+                                                        <td>
+                                                            <span className={`badge status-badge ${c.status === 'In Review' ? 'review' : c.status.toLowerCase()}`}>{c.status}</span>
+                                                        </td>
+                                                        <td>
+                                                            <div className="action-btns">
+                                                                <button className="btn-sm" title="View" onClick={() => setModal({ open: true, type: 'View Details', data: c })}><Icon name="eye" size={16} /></button>
+                                                                <button className="btn-sm" title="Resolve" style={{ color: 'var(--primary)' }} onClick={() => setModal({ open: true, type: 'Resolve Confirmation', data: c })}><Icon name="check" size={16} /></button>
+                                                                <button className="btn-sm" title="Dismiss" onClick={() => setModal({ open: true, type: 'Dismiss Complaint', data: c })}><Icon name="x" size={16} /></button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Mobile Cards */}
+                                    <div className="mobile-cards">
+                                        {filteredComplaints.map(c => (
+                                            <div key={c.id} className="complaint-card-mobile scale-up">
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{c.id}</span>
+                                                    <span className={`badge priority-badge ${c.priority.toLowerCase()}`}>{c.priority} Priority</span>
+                                                </div>
+                                                <div style={{ margin: '8px 0' }}>
+                                                    <span className={`badge issue-badge`} style={{ 
+                                                        background: `var(--issue-${c.issue.toLowerCase().replace(' ', '')}-bg)`,
+                                                        color: `var(--issue-${c.issue.toLowerCase().replace(' ', '')})`
+                                                    }}>{c.issue}</span>
+                                                </div>
+                                                <div style={{ fontSize: '14px' }}>
+                                                    <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>Reported by {c.by}</div>
+                                                    <div style={{ fontWeight: 700 }}>Against: {c.against}</div>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                                                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.date}</span>
+                                                    <span className={`badge status-badge ${c.status === 'In Review' ? 'review' : c.status.toLowerCase()}`}>{c.status}</span>
+                                                </div>
+                                                <div className="action-btns" style={{ marginTop: '16px', justifyContent: 'flex-end' }}>
+                                                    <button className="btn-sm" onClick={() => setModal({ open: true, type: 'View Details', data: c })}><Icon name="eye" size={18} /> View</button>
+                                                    <button className="btn-sm" style={{ color: 'var(--primary)' }} onClick={() => setModal({ open: true, type: 'Resolve Confirmation', data: c })}><Icon name="check" size={18} /> Resolve</button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="pagination">
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Showing <b>{filteredComplaints.length}</b> of {complaints.length} results</div>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button className="btn-sm"><Icon name="chevron-left" size={18} /></button>
+                                            <button className="btn-sm" style={{ background: 'var(--primary)', color: 'white', borderColor: 'var(--primary)' }}>1</button>
+                                            <button className="btn-sm">2</button>
+                                            <button className="btn-sm">3</button>
+                                            <button className="btn-sm"><Icon name="chevron-right" size={18} /></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="empty-state slide-up">
+                                    <Icon name="check-circle" size={64} color="var(--primary)" />
+                                    <h2>No complaints found! 🎉</h2>
+                                    <p style={{ color: 'var(--text-muted)' }}>All issues have been resolved. Great job!</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Modals */}
+                    {modal.open && (
+                        <div className="modal-overlay" onClick={(e) => e.target.classList.contains('modal-overlay') && setModal({ open: false, type: '', data: null })}>
+                            <div className="modal-content scale-up" style={{ maxWidth: modal.type === 'View Details' ? '800px' : '500px' }}>
+                                <div className="modal-header">
+                                    <h2 style={{ margin: 0, fontWeight: 800 }}>
+                                        {modal.type === 'View Details' ? `Complaint ${modal.data.id}` : modal.type}
+                                    </h2>
+                                    <button className="modal-close" onClick={() => setModal({ open: false, type: '', data: null })}>
+                                        <Icon name="x" size={20} />
+                                    </button>
+                                </div>
+
+                                {modal.type === 'View Details' && modal.data && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                        <div className="modal-grid">
+                                            {/* Left Section */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                <div className="info-card">
+                                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                                                        <span className={`badge issue-badge`} style={{ 
+                                                            background: `var(--issue-${modal.data.issue.toLowerCase().replace(' ', '')}-bg)`,
+                                                            color: `var(--issue-${modal.data.issue.toLowerCase().replace(' ', '')})`
+                                                        }}>{modal.data.issue}</span>
+                                                        <span className={`badge priority-badge ${modal.data.priority.toLowerCase()}`}>{modal.data.priority} Priority</span>
+                                                        <span className={`badge status-badge ${modal.data.status === 'In Review' ? 'review' : modal.data.status.toLowerCase()}`}>{modal.data.status}</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Date Reported: <b>{modal.data.date}</b></div>
+                                                    <div style={{ lineHeight: 1.6 }}>{modal.data.desc}</div>
+                                                </div>
+                                                <div>
+                                                    <h4 style={{ margin: '0 0 12px 0' }}>📎 Attached Photos (2)</h4>
+                                                    <div className="evidence-grid">
+                                                        <div className="evidence-thumb"><Icon name="image" size={24} /></div>
+                                                        <div className="evidence-thumb"><Icon name="image" size={24} /></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h4 style={{ margin: '0 0 12px 0' }}>Admin Internal Notes</h4>
+                                                    <textarea placeholder="Add internal notes for other admins..."></textarea>
+                                                    <button className="btn-primary" style={{ marginTop: '12px', width: '100%' }}>Save Notes</button>
+                                                </div>
+                                            </div>
+
+                                            {/* Right Section */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                <div className="info-card">
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                                        <Icon name="user" size={20} color="var(--primary)" />
+                                                        <h4 style={{ margin: 0 }}>Reported By</h4>
+                                                    </div>
+                                                    <div style={{ fontWeight: 700, fontSize: '16px' }}>{modal.data.by}</div>
+                                                    <div className="role-badge" style={{ margin: '8px 0', display: 'inline-block' }}>{modal.data.byRole}</div>
+                                                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Email: rahul@example.com</div>
+                                                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Phone: +91 98765 43210</div>
+                                                    <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--primary)', fontWeight: 600 }}>Total complaints filed: 1</div>
+                                                </div>
+                                                <div className="info-card">
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                                        <Icon name="shield-alert" size={20} color="#ef4444" />
+                                                        <h4 style={{ margin: 0 }}>Against</h4>
+                                                    </div>
+                                                    <div style={{ fontWeight: 700, fontSize: '16px' }}>{modal.data.against}</div>
+                                                    <div className="role-badge" style={{ margin: '8px 0', display: 'inline-block', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>{modal.data.againstRole}</div>
+                                                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Email: contact@ngo.org</div>
+                                                    <div style={{ marginTop: '12px', fontSize: '13px', color: '#ef4444', fontWeight: 600 }}>Previous complaints: 2</div>
+                                                </div>
+                                                <div className="status-update-row">
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Current Status</div>
+                                                        <div style={{ fontWeight: 700 }}>{modal.data.status}</div>
+                                                    </div>
+                                                    <select className="filter-select" style={{ minWidth: '130px' }} onChange={(e) => updateStatus(modal.data.id, e.target.value)}>
+                                                        <option>Change Status</option>
+                                                        <option value="Open">Open</option>
+                                                        <option value="In Review">In Review</option>
+                                                        <option value="Resolved">Resolved</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="modal-actions">
+                                            <button className="btn-primary" onClick={() => setModal({ open: true, type: 'Resolve Confirmation', data: modal.data })}>
+                                                <Icon name="check" size={18} /> Mark Resolved
+                                            </button>
+                                            <button className="btn-outline" style={{ color: '#f59e0b', borderColor: '#f59e0b' }} onClick={() => setModal({ open: true, type: 'Warn User', data: modal.data })}>
+                                                <Icon name="alert-triangle" size={18} /> Warn User
+                                            </button>
+                                            <button className="btn-outline" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={() => setModal({ open: true, type: 'Suspend Account', data: modal.data })}>
+                                                <Icon name="ban" size={18} /> Suspend Account
+                                            </button>
+                                            <button className="btn-outline" onClick={() => setModal({ open: true, type: 'Dismiss Complaint', data: modal.data })}>
+                                                Dismiss Complaint
+                                            </button>
+                                            <button className="btn-outline" style={{ marginLeft: 'auto' }} onClick={() => setModal({ open: false, type: '', data: null })}>Close</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {modal.type === 'Resolve Confirmation' && modal.data && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <p style={{ margin: 0, fontSize: '16px' }}>Mark complaint <b>{modal.data.id}</b> as resolved?</p>
+                                        <textarea placeholder="Enter resolution details for the record..."></textarea>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <input type="checkbox" id="notify" defaultChecked />
+                                            <label htmlFor="notify" style={{ fontSize: '14px', fontWeight: 500 }}>Notify both parties via Email/SMS</label>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                                            <button className="btn-outline" style={{ flex: 1 }} onClick={() => setModal({ open: false, type: '', data: null })}>Cancel</button>
+                                            <button className="btn-primary" style={{ flex: 1 }} onClick={() => updateStatus(modal.data.id, 'Resolved')}>Yes, Resolve ✓</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {modal.type === 'Warn User' && modal.data && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <p style={{ margin: 0, fontSize: '16px' }}>Send formal warning to <b>{modal.data.against}</b>?</p>
+                                        <textarea defaultValue={`Your account has received a complaint regarding ${modal.data.issue.toLowerCase()}. Please ensure all future interactions follow FoodBridge guidelines to avoid account suspension.`}></textarea>
+                                        <div>
+                                            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Send via</label>
+                                            <div style={{ display: 'flex', gap: '20px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="radio" name="via" defaultChecked /> Email</label>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="radio" name="via" /> SMS</label>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="radio" name="via" /> Both</label>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                                            <button className="btn-outline" style={{ flex: 1 }} onClick={() => setModal({ open: false, type: '', data: null })}>Cancel</button>
+                                            <button className="btn-primary" style={{ flex: 1, background: '#f59e0b' }}>Send Warning</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {modal.type === 'Suspend Account' && modal.data && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <p style={{ margin: 0, fontSize: '16px' }}>Suspend <b>{modal.data.against}</b>'s account?</p>
+                                        <div style={{ background: '#fee2e2', color: '#ef4444', padding: '12px', borderRadius: '12px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <Icon name="alert-circle" size={20} />
+                                            <span>This will prevent them from using FoodBridge immediately.</span>
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Suspension Duration</label>
+                                            <select className="filter-select" style={{ width: '100%' }}>
+                                                <option>7 days</option>
+                                                <option>30 days</option>
+                                                <option>Permanent</option>
+                                            </select>
+                                        </div>
+                                        <textarea placeholder="Reason for suspension (visible to user)..."></textarea>
+                                        <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                                            <button className="btn-outline" style={{ flex: 1 }} onClick={() => setModal({ open: false, type: '', data: null })}>Cancel</button>
+                                            <button className="btn-primary" style={{ flex: 1, background: '#ef4444' }}>Yes, Suspend 🚫</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {modal.type === 'Dismiss Complaint' && modal.data && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <p style={{ margin: 0, fontSize: '16px' }}>Dismiss complaint <b>{modal.data.id}</b>?</p>
+                                        <div>
+                                            <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Reason for Dismissal</label>
+                                            <select className="filter-select" style={{ width: '100%' }}>
+                                                <option>Invalid</option>
+                                                <option>Duplicate</option>
+                                                <option>Resolved Offline</option>
+                                                <option>Other</option>
+                                            </select>
+                                        </div>
+                                        <textarea placeholder="Internal notes for dismissal..."></textarea>
+                                        <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                                            <button className="btn-outline" style={{ flex: 1 }} onClick={() => setModal({ open: false, type: '', data: null })}>Cancel</button>
+                                            <button className="btn-primary" style={{ flex: 1, background: '#64748b' }} onClick={() => dismissComplaint(modal.data.id)}>Dismiss</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mobile Bottom Nav */}
+                    <div className="bottom-nav">
+                        <a href="admin_panel.html" className="bottom-nav-item">
+                            <Icon name="layout-dashboard" size={24} />
+                            <span>Overview</span>
+                        </a>
+                        <a href="#" className="bottom-nav-item">
+                            <Icon name="users" size={24} />
+                            <span>Users</span>
+                        </a>
+                        <a href="#" className="bottom-nav-item">
+                            <Icon name="package" size={24} />
+                            <span>Donations</span>
+                        </a>
+                        <a href="#" className="bottom-nav-item">
+                            <Icon name="building" size={24} />
+                            <span>NGOs</span>
+                        </a>
+                        <a href="admin_complaints.html" className="bottom-nav-item active">
+                            <Icon name="alert-triangle" size={24} />
+                            <span>Complaints</span>
+                        </a>
+                    </div>
+
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)}>
+                        <Icon name={darkMode ? "sun" : "moon"} size={24} />
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

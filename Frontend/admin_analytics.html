@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Analytics | FoodBridge</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Translations & Global Functions -->
+    <script src="lang.js"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Existing Design System -->
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-rgb: 16, 185, 129;
+            --primary-dark: #059669;
+            --background: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.8);
+            --surface-solid: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            --admin-purple: #8b5cf6;
+            --admin-purple-bg: rgba(139, 92, 246, 0.1);
+        }
+
+        .dark-mode {
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.8);
+            --surface-solid: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Shared with admin_panel.html */
+        .sidebar {
+            width: 260px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 50;
+        }
+        .sidebar.collapsed { width: 80px; }
+
+        .sidebar-header {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+        }
+        .sidebar-header h2 { margin-left: 12px; color: var(--primary); font-size: 20px; }
+
+        .nav-items {
+            padding: 24px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            border-radius: 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .nav-item:hover { background: rgba(16, 185, 129, 0.1); color: var(--primary); }
+        .nav-item.active { background: var(--primary); color: white; }
+
+        .collapse-btn {
+            position: absolute;
+            right: -14px;
+            top: 21px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .navbar {
+            height: 70px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 40;
+        }
+
+        .main-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        /* Analytics Specific Styles */
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .header-left h1 { font-size: 28px; margin-bottom: 4px; }
+        .header-left p { color: var(--text-muted); font-size: 15px; }
+
+        .header-right { display: flex; gap: 12px; align-items: center; }
+
+        .date-filter {
+            display: flex;
+            background: var(--surface-solid);
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            gap: 4px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Outfit';
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--glass-shadow);
+            transition: transform 0.3s;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-info h3 { font-size: 24px; font-weight: 800; margin-bottom: 2px; }
+        .stat-info p { color: var(--text-muted); font-size: 14px; font-weight: 500; }
+
+        .charts-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .chart-card {
+            background: var(--surface-solid);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            padding: 24px;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .chart-card h4 { margin-bottom: 24px; font-size: 18px; display: flex; align-items: center; gap: 10px; }
+
+        .grid-2-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .leaderboard-card {
+            background: var(--surface-solid);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            padding: 24px;
+            box-shadow: var(--glass-shadow);
+            grid-column: span 2;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 16px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: uppercase; }
+        td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 15px; }
+        tr:last-child td { border-bottom: none; }
+
+        .donor-info { display: flex; align-items: center; gap: 12px; }
+        .donor-info img { width: 32px; height: 32px; border-radius: 50%; }
+
+        .rank-badge {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            background: var(--background);
+        }
+        .rank-1 { background: #ffd700; color: #000; }
+        .rank-2 { background: #c0c0c0; color: #000; }
+        .rank-3 { background: #cd7f32; color: #000; }
+
+        .btn-export {
+            background: var(--admin-purple);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            font-family: 'Outfit';
+        }
+        .btn-export:hover { background: #7c3aed; transform: translateY(-2px); }
+
+        .theme-toggle {
+            position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px;
+            border-radius: 50%; background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); border: none;
+            z-index: 1000; transition: transform 0.3s;
+        }
+        .theme-toggle:hover { transform: scale(1.1) rotate(15deg); }
+
+        @media (max-width: 1024px) {
+            .sidebar { display: none; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-row { grid-template-columns: 1fr; }
+            .grid-2-cols { grid-template-columns: 1fr; }
+            .leaderboard-card { grid-column: span 1; }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .analytics-header { flex-direction: column; align-items: flex-start; }
+            .main-scroll { padding: 16px; }
+        }
+
+        /* Animations */
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-card { animation: slideIn 0.5s ease-out forwards; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size = 24, color, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current) {
+                    iconRef.current.innerHTML = "";
+                    const i = document.createElement("i");
+                    i.setAttribute("data-lucide", name);
+                    if (color) i.style.color = color;
+                    if (size) { i.style.width = size + "px"; i.style.height = size + "px"; }
+                    if (className) i.className = className;
+                    iconRef.current.appendChild(i);
+                    lucide.createIcons({ root: iconRef.current });
+                }
+            }, [name, color, size, className]);
+            return <span ref={iconRef} className={`icon-wrapper ${className}`} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }} />;
+        };
+
+        const LanguageSwitcher = () => {
+            const [lang, setLang] = useState(window.getLang());
+            const toggleLang = (newLang) => {
+                window.setLang(newLang);
+                setLang(newLang);
+                window.location.reload();
+            };
+            return (
+                <div className="lang-switcher" style={{ display: 'flex', gap: '4px', background: 'var(--surface)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'english' ? 'var(--primary)' : 'transparent', color: lang === 'english' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('english')}>🇬🇧 EN</button>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'hindi' ? 'var(--primary)' : 'transparent', color: lang === 'hindi' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('hindi')}>🇮🇳 HI</button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+            const [dateRange, setDateRange] = useState('This Month');
+            
+            const lineChartRef = useRef(null);
+            const barChartRef = useRef(null);
+            const doughnutChartRef = useRef(null);
+
+            useEffect(() => {
+                if (darkMode) {
+                    document.body.classList.add('dark-mode');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                }
+                updateCharts();
+            }, [darkMode]);
+
+            useEffect(() => {
+                const ctxLine = document.getElementById('lineChart');
+                const ctxBar = document.getElementById('barChart');
+                const ctxDoughnut = document.getElementById('doughnutChart');
+
+                if (lineChartRef.current) lineChartRef.current.destroy();
+                if (barChartRef.current) barChartRef.current.destroy();
+                if (doughnutChartRef.current) doughnutChartRef.current.destroy();
+
+                const commonOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: darkMode ? '#94a3b8' : '#64748b',
+                                font: { family: 'Outfit', size: 12 }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: darkMode ? '#334155' : '#e2e8f0' },
+                            ticks: { color: darkMode ? '#94a3b8' : '#64748b' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: darkMode ? '#94a3b8' : '#64748b' }
+                        }
+                    }
+                };
+
+                lineChartRef.current = new Chart(ctxLine, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                        datasets: [{
+                            label: 'Donations',
+                            data: [450, 580, 490, 720, 680, 890, 1020],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: commonOptions
+                });
+
+                barChartRef.current = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Hyderabad'],
+                        datasets: [{
+                            label: 'Donations by City',
+                            data: [420, 380, 310, 250, 210],
+                            backgroundColor: [
+                                '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'
+                            ],
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        ...commonOptions,
+                        scales: {
+                            ...commonOptions.scales,
+                            x: { ...commonOptions.scales.x, grid: { display: false } }
+                        }
+                    }
+                });
+
+                doughnutChartRef.current = new Chart(ctxDoughnut, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Cooked', 'Raw', 'Packaged', 'Beverages'],
+                        datasets: [{
+                            data: [45, 25, 20, 10],
+                            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        ...commonOptions,
+                        scales: { display: false }
+                    }
+                });
+            }, [darkMode]);
+
+            const updateCharts = () => {
+                // In a real app, this would fetch new data based on dateRange
+            };
+
+            const stats = [
+                { label: "Total Donations", value: "3,560", icon: "package", color: "#10b981" },
+                { label: "Active NGOs", value: "148", icon: "building", color: "#3b82f6" },
+                { label: "Meals Served", value: "89,200", icon: "utensils", color: "#f59e0b" },
+                { label: "Food Saved (kg)", value: "24.5k", icon: "leaf", color: "#8b5cf6" }
+            ];
+
+            const donors = [
+                { name: "Rahul Sharma", donations: 124, impact: "2.4k Meals", city: "Delhi", avatar: "https://ui-avatars.com/api/?name=Rahul+Sharma&background=10b981&color=fff" },
+                { name: "Priya Singh", donations: 98, impact: "1.8k Meals", city: "Mumbai", avatar: "https://ui-avatars.com/api/?name=Priya+Singh&background=3b82f6&color=fff" },
+                { name: "Amit Kumar", donations: 85, impact: "1.5k Meals", city: "Bangalore", avatar: "https://ui-avatars.com/api/?name=Amit+Kumar&background=f59e0b&color=fff" },
+                { name: "Neha Gupta", donations: 76, impact: "1.2k Meals", city: "Chennai", avatar: "https://ui-avatars.com/api/?name=Neha+Gupta&background=ef4444&color=fff" },
+                { name: "Suresh Patel", donations: 64, impact: "1.1k Meals", city: "Ahmedabad", avatar: "https://ui-avatars.com/api/?name=Suresh+Patel&background=8b5cf6&color=fff" }
+            ];
+
+            const navItems = [
+                { name: "Overview", icon: "layout-dashboard", href: "admin_panel.html" },
+                { name: "Users", icon: "users", href: "#" },
+                { name: "Donations", icon: "package", href: "#" },
+                { name: "NGOs", icon: "building", href: "#" },
+                { name: "Analytics", icon: "bar-chart", href: "#", active: true },
+                { name: "Complaints", icon: "alert-triangle", href: "admin_complaints.html" },
+                { name: "Settings", icon: "settings", href: "#" }
+            ];
+
+            return (
+                <div className="app-container">
+                    {/* Sidebar */}
+                    <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+                        <a href="admin_panel.html" className="sidebar-header">
+                            <Icon name="heart" color="var(--primary)" size={28} />
+                            {!sidebarCollapsed && <h2>FoodBridge</h2>}
+                        </a>
+                        <button className="collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} />
+                        </button>
+                        <div className="nav-items">
+                            {navItems.map(item => (
+                                <a 
+                                    key={item.name} 
+                                    href={item.href} 
+                                    className={`nav-item ${item.active ? 'active' : ''}`}
+                                >
+                                    <Icon name={item.icon} size={22} />
+                                    {!sidebarCollapsed && <span>{item.name}</span>}
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="content-wrapper">
+                        {/* Navbar */}
+                        <div className="navbar">
+                            <div className="breadcrumb">
+                                <span style={{ color: 'var(--text-muted)' }}>Admin</span> / <span>Analytics</span>
+                            </div>
+                            <div className="nav-right" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                                <LanguageSwitcher />
+                                <button className="btn-export">
+                                    <Icon name="download" size={18} /> Export PDF
+                                </button>
+                                <button className="btn-icon" onClick={() => window.location.href='notifications.html'} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '12px', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                                    <Icon name="bell" size={24} />
+                                </button>
+                                <div className="user-profile" onClick={() => window.location.href='profile.html'} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                                    <img src="https://ui-avatars.com/api/?name=Admin&background=8b5cf6&color=fff" alt="Admin" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
+                                    <span style={{ fontWeight: 700 }} className="hide-mobile">Admin Panel</span>
+                                </div>
+                                <button className="btn-icon" onClick={() => window.location.href='login.html'} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '12px', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                                    <Icon name="log-out" size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Main Content */}
+                        <div className="main-scroll">
+                            <div className="analytics-header animate-card">
+                                <div className="header-left">
+                                    <h1>Impact Analytics 📊</h1>
+                                    <p>Real-time data visualization of the FoodBridge ecosystem.</p>
+                                </div>
+                                <div className="header-right">
+                                    <div className="date-filter">
+                                        {['This Week', 'This Month', 'This Year'].map(range => (
+                                            <button 
+                                                key={range} 
+                                                className={`filter-btn ${dateRange === range ? 'active' : ''}`}
+                                                onClick={() => setDateRange(range)}
+                                            >
+                                                {range}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Stats Row */}
+                            <div className="stats-grid">
+                                {stats.map((stat, i) => (
+                                    <div key={i} className="stat-card animate-card" style={{ animationDelay: `${i * 0.1}s` }}>
+                                        <div className="stat-icon" style={{ backgroundColor: `${stat.color}15`, color: stat.color }}>
+                                            <Icon name={stat.icon} size={24} />
+                                        </div>
+                                        <div className="stat-info">
+                                            <h3>{stat.value}</h3>
+                                            <p>{stat.label}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Charts Grid */}
+                            <div className="charts-row">
+                                <div className="chart-card animate-card" style={{ animationDelay: '0.4s' }}>
+                                    <h4><Icon name="trending-up" color="var(--primary)" size={20} /> Donation Growth Over Time</h4>
+                                    <div style={{ height: '300px' }}>
+                                        <canvas id="lineChart"></canvas>
+                                    </div>
+                                </div>
+                                <div className="chart-card animate-card" style={{ animationDelay: '0.5s' }}>
+                                    <h4><Icon name="pie-chart" color="#3b82f6" size={20} /> Category Breakdown</h4>
+                                    <div style={{ height: '300px' }}>
+                                        <canvas id="doughnutChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid-2-cols">
+                                <div className="chart-card animate-card" style={{ animationDelay: '0.6s' }}>
+                                    <h4><Icon name="map-pin" color="#ef4444" size={20} /> Top Performing Cities</h4>
+                                    <div style={{ height: '300px' }}>
+                                        <canvas id="barChart"></canvas>
+                                    </div>
+                                </div>
+                                <div className="leaderboard-card animate-card" style={{ animationDelay: '0.7s' }}>
+                                    <h4><Icon name="award" color="#f59e0b" size={20} /> Top Donors Leaderboard</h4>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Rank</th>
+                                                <th>Donor</th>
+                                                <th>City</th>
+                                                <th>Total Donations</th>
+                                                <th>Total Impact</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {donors.map((donor, i) => (
+                                                <tr key={i}>
+                                                    <td><div className={`rank-badge rank-${i+1}`}>{i+1}</div></td>
+                                                    <td>
+                                                        <div className="donor-info">
+                                                            <img src={donor.avatar} alt={donor.name} />
+                                                            <span style={{ fontWeight: 600 }}>{donor.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>{donor.city}</td>
+                                                    <td style={{ fontWeight: 700 }}>{donor.donations}</td>
+                                                    <td><span style={{ color: 'var(--primary)', fontWeight: 600 }}>{donor.impact}</span></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Theme Toggle */}
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)} title="Toggle Theme">
+                        <Icon name={darkMode ? "sun" : "moon"} size={24} />
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

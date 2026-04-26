@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodBridge | NGO Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Translations & Global Functions -->
+    <script src="lang.js"></script>
+    <script src="utils.js"></script>
+    <script src="firebaseService.js"></script>
+    <script type="text/babel" src="shared_components.jsx"></script>
+
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <style>
+        :root {
+            --primary: #22c55e;
+            --primary-rgb: 34, 197, 94;
+            --primary-dark: #16a34a;
+            --background: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.7);
+            --surface-solid: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: rgba(226, 232, 240, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            
+            --status-pending: #d97706;
+            --status-pending-bg: #fef3c7;
+            --status-accepted: #2563eb;
+            --status-accepted-bg: #dbeafe;
+            --status-completed: #16a34a;
+            --status-completed-bg: #dcfce7;
+            --status-cancelled: #dc2626;
+            --status-cancelled-bg: #fee2e2;
+        }
+
+        [data-theme="dark"] {
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --surface-solid: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(51, 65, 85, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+
+            --status-pending: #fcd34d;
+            --status-pending-bg: rgba(245, 158, 11, 0.2);
+            --status-accepted: #60a5fa;
+            --status-accepted-bg: rgba(59, 130, 246, 0.2);
+            --status-completed: #4ade80;
+            --status-completed-bg: rgba(34, 197, 94, 0.2);
+            --status-cancelled: #f87171;
+            --status-cancelled-bg: rgba(239, 68, 68, 0.2);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        * { box-sizing: border-box; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes fadeInRow { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
+        .scale-up { animation: scaleUp 0.3s ease-out forwards; }
+        .fade-in-row { animation: fadeInRow 0.5s ease-out forwards; opacity: 0; }
+        tbody tr:nth-child(1) { animation-delay: 0.05s; }
+        tbody tr:nth-child(2) { animation-delay: 0.1s; }
+        tbody tr:nth-child(3) { animation-delay: 0.15s; }
+        tbody tr:nth-child(4) { animation-delay: 0.2s; }
+        
+        .donation-card:nth-child(1) { animation-delay: 0.05s; }
+        .donation-card:nth-child(2) { animation-delay: 0.1s; }
+        .donation-card:nth-child(3) { animation-delay: 0.15s; }
+        .donation-card:nth-child(4) { animation-delay: 0.2s; }
+        .donation-card:nth-child(5) { animation-delay: 0.25s; }
+
+        /* Layout Structure */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 50;
+        }
+        .sidebar.collapsed { width: 80px; }
+
+        .sidebar-header {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar-header h2 { margin-left: 12px; color: var(--primary); font-size: 20px; margin-top: 0; margin-bottom: 0; }
+
+        .nav-items {
+            padding: 24px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            border-radius: 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .nav-item:hover { background: rgba(34, 197, 94, 0.1); color: var(--primary); }
+        .nav-item.active { background: var(--primary); color: white; }
+
+        .collapse-btn {
+            position: absolute;
+            right: -14px;
+            top: 21px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .navbar {
+            height: 70px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 40;
+        }
+
+        .navbar-left { display: none; align-items: center; }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 99px;
+            padding: 8px 16px;
+            width: 300px;
+        }
+        .search-bar input {
+            border: none; background: transparent; outline: none; margin-left: 8px; color: var(--text-main); width: 100%; font-family: 'Outfit';
+        }
+
+        .nav-right { display: flex; align-items: center; gap: 24px; }
+        .notification-bell { position: relative; cursor: pointer; color: var(--text-muted); }
+        .badge-red {
+            position: absolute; top: -4px; right: -4px;
+            background: #ef4444; color: white;
+            font-size: 10px; width: 16px; height: 16px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+        }
+
+        .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .user-profile img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+
+        .main-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        /* General Card */
+        .card {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .welcome-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            display: flex; align-items: center; gap: 16px;
+            padding: 24px; border-radius: 24px;
+            background: var(--surface); border: 1px solid var(--border);
+            box-shadow: var(--glass-shadow);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-4px); }
+        .stat-icon {
+            width: 56px; height: 56px; border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .stat-info h3 { margin: 0 0 4px 0; font-size: 28px; }
+        .stat-info p { margin: 0; color: var(--text-muted); font-size: 14px; }
+        .stat-info .subtext { font-size: 12px; font-weight: 500; margin-top: 4px; display: inline-block; opacity: 0.8; }
+
+        /* Available Donations Grid */
+        .filter-tabs { display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px; overflow-x: auto; }
+        .tab-btn {
+            background: transparent; border: none; padding: 8px 16px; font-size: 15px; font-weight: 500;
+            color: var(--text-muted); cursor: pointer; border-radius: 99px; transition: all 0.2s; font-family: 'Outfit';
+            white-space: nowrap;
+        }
+        .tab-btn:hover { background: rgba(34, 197, 94, 0.05); color: var(--primary); }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .donation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        .donation-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: var(--glass-shadow);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .donation-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .donation-card.accepted {
+            background: rgba(34, 197, 94, 0.05);
+            border-color: var(--primary);
+        }
+        .donation-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .donation-card-title { font-size: 18px; font-weight: 600; margin: 0 0 4px 0; }
+        .donation-qty { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+        .donation-meta { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-muted); margin-bottom: 12px; flex: 1; }
+        .donation-meta-item { display: flex; align-items: center; gap: 6px; }
+        .distance-text { color: var(--primary); font-weight: 500; }
+        
+        .expiry-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; align-self: flex-start; }
+        .expiry-red { background: #fee2e2; color: #dc2626; }
+        .expiry-yellow { background: #fef3c7; color: #d97706; }
+        .expiry-green { background: #dcfce7; color: #16a34a; }
+        [data-theme="dark"] .expiry-red { background: rgba(239,68,68,0.2); color: #f87171; }
+        [data-theme="dark"] .expiry-yellow { background: rgba(245,158,11,0.2); color: #fcd34d; }
+        [data-theme="dark"] .expiry-green { background: rgba(34,197,94,0.2); color: #4ade80; }
+
+        .donation-actions { display: flex; gap: 10px; margin-top: 16px; }
+        .btn-accept { flex: 1; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: 'Outfit'; }
+        .btn-accept:hover { background: var(--primary-dark); transform: scale(1.02); }
+        .btn-decline { flex: 1; background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 10px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Outfit'; }
+        .btn-decline:hover { background: #fee2e2; }
+        [data-theme="dark"] .btn-decline:hover { background: rgba(239,68,68,0.1); }
+
+        .category-badge { background: var(--background); color: var(--text-main); border: 1px solid var(--border); padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 600; }
+
+        /* Main Grid Layout */
+        .dashboard-grid-main {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        /* Table Section */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-weight: 500; font-size: 14px; }
+        tbody tr { transition: background 0.2s; }
+        tbody tr:hover { background: rgba(34, 197, 94, 0.03); }
+        
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; }
+        .status-Scheduled { background: var(--status-accepted-bg); color: var(--status-accepted); }
+        .status-InTransit { background: var(--status-pending-bg); color: var(--status-pending); }
+        .status-Delivered { background: var(--status-completed-bg); color: var(--status-completed); }
+
+        .btn-assign { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 6px 12px; border-radius: 99px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: 'Outfit'; }
+        .btn-assign:hover { background: var(--primary); color: white; }
+
+        /* Timeline */
+        .schedule-timeline { display: flex; flex-direction: column; gap: 20px; position: relative; padding-left: 20px; margin-top: 16px; }
+        .schedule-timeline::before { content: ''; position: absolute; left: 25px; top: 10px; bottom: 10px; width: 2px; background: var(--border); z-index: 1; }
+        .schedule-item { display: flex; gap: 16px; position: relative; z-index: 2; align-items: flex-start; }
+        .schedule-time { width: 65px; font-weight: 600; color: var(--primary); font-size: 13px; text-align: right; padding-top: 2px; flex-shrink: 0; }
+        .schedule-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--surface-solid); border: 2px solid var(--primary); margin-top: 4px; box-shadow: 0 0 0 4px var(--surface); flex-shrink: 0; }
+        .schedule-content { background: var(--background); padding: 16px; border-radius: 16px; border: 1px solid var(--border); flex: 1; }
+        .schedule-content h4 { margin: 0 0 4px 0; font-size: 15px; }
+        .schedule-content p { margin: 0; color: var(--text-muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
+        /* Quick Actions */
+        .quick-actions-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+        .action-btn { background: var(--background); border: 1px solid var(--border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-main); font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: 'Outfit'; font-size: 13px; }
+        .action-btn:hover { background: rgba(34,197,94,0.05); border-color: var(--primary); color: var(--primary); transform: translateY(-2px); }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center; z-index: 200;
+        }
+        .modal-content {
+            background: var(--surface-solid); border-radius: 24px;
+            width: 90%; max-width: 450px; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2);
+        }
+        .modal-header { padding: 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface-solid); z-index: 10; }
+        .modal-header h2 { margin: 0; font-size: 20px; }
+        .modal-body { padding: 24px; }
+        .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: all 0.2s; }
+        .btn-icon:hover { background: rgba(34, 197, 94, 0.1); color: var(--primary); }
+
+        .volunteer-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .volunteer-option { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+        .volunteer-option:hover:not(.disabled) { border-color: var(--primary); background: rgba(34,197,94,0.05); }
+        .volunteer-option.selected { border-color: var(--primary); background: rgba(34,197,94,0.1); }
+        .volunteer-option.disabled { opacity: 0.6; cursor: not-allowed; background: var(--background); }
+        .avatar-small { width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+
+        .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 10px 20px; border-radius: 99px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; }
+        .btn-outline:hover { background: var(--background); }
+        .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 99px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; transition: opacity 0.2s; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* SOS Emergency Feature CSS */
+        :root {
+            --sos-red: #ef4444;
+            --sos-dark: #dc2626;
+            --sos-light: rgba(239, 68, 68, 0.05);
+        }
+        @keyframes flashBanner {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        @keyframes sosGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.2); }
+            50% { box-shadow: 0 0 20px 5px rgba(239,68,68,0.5); }
+        }
+        @keyframes urgentShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        @keyframes slideOutRight {
+            0% { transform: translateX(0); opacity: 1; height: auto; }
+            100% { transform: translateX(100%); opacity: 0; height: 0; padding: 0; margin: 0; border: none; }
+        }
+        @keyframes bounceCheck {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .sos-banner {
+            background: linear-gradient(90deg, var(--sos-dark), var(--sos-red));
+            color: white;
+            padding: 12px 24px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            animation: flashBanner 2s infinite;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+        .sos-pulse-dot {
+            width: 12px; height: 12px; border-radius: 50%; background: white;
+            box-shadow: 0 0 0 0 rgba(255,255,255,0.7);
+            animation: pulse-white 1.5s infinite;
+        }
+        @keyframes pulse-white {
+            0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+        }
+        .sos-card {
+            background: var(--sos-light);
+            border-left: 4px solid var(--sos-red);
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            animation: sosGlow 2s infinite;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+            border-top: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .sos-card.urgent { animation: sosGlow 1s infinite, urgentShake 0.5s infinite; }
+        .sos-card.dismissing { animation: slideOutRight 0.5s forwards; overflow: hidden; }
+        
+        .timer-badge {
+            background: var(--surface-solid);
+            padding: 4px 12px; border-radius: 99px;
+            font-weight: 600; font-size: 14px;
+            display: inline-flex; align-items: center; gap: 6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .timer-badge.red { color: var(--sos-red); animation: pulse-white 1s infinite; }
+        .timer-badge.orange { color: #f97316; }
+        .timer-badge.green { color: var(--primary); }
+
+        .sos-history-table {
+            width: 100%; border-collapse: collapse; min-width: 600px;
+        }
+        .confetti {
+            position: fixed; top: -10px; width: 10px; height: 10px; z-index: 9999;
+            animation: confettiFall linear forwards;
+        }
+
+        /* NGO SOS Sending CSS */
+        :root {
+            --ngo-sos-orange: #f97316;
+            --ngo-sos-orange-dark: #ea580c;
+            --ngo-sos-light: rgba(249, 115, 22, 0.05);
+        }
+        @keyframes pulse-orange {
+            0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+        }
+        @keyframes radio-waves {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+        .ngo-sos-card {
+            background: linear-gradient(135deg, var(--ngo-sos-orange), var(--ngo-sos-orange-dark));
+            color: white; border-radius: 16px; padding: 24px;
+            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.3);
+            position: relative; overflow: hidden;
+        }
+        .ngo-sos-banner {
+            background: var(--ngo-sos-orange); color: white;
+            padding: 12px 24px; border-radius: 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
+        }
+        .radio-wave {
+            position: absolute; width: 100px; height: 100px; border: 2px solid var(--ngo-sos-orange);
+            border-radius: 50%; top: 50%; left: 50%; margin-top: -50px; margin-left: -50px;
+            animation: radio-waves 2s infinite linear;
+        }
+        .radio-wave:nth-child(2) { animation-delay: 0.6s; }
+        .radio-wave:nth-child(3) { animation-delay: 1.2s; }
+        
+        .donor-response-card {
+            background: var(--background); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px; text-align: left;
+            margin-bottom: 12px;
+        }
+
+        /* Bottom Nav & Theme Toggle */
+        .bottom-nav {
+            display: none; position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--surface); backdrop-filter: blur(16px);
+            border-top: 1px solid var(--border); padding: 12px 16px;
+            justify-content: space-around; z-index: 100;
+        }
+        .bottom-nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            color: var(--text-muted); font-size: 12px; cursor: pointer; transition: color 0.2s;
+        }
+        .bottom-nav-item.active { color: var(--primary); }
+
+        .theme-toggle {
+            position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px;
+            border-radius: 50%; background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); border: none;
+            z-index: 1000; transition: transform 0.3s;
+        }
+        .theme-toggle:hover { transform: scale(1.1) rotate(15deg); }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .dashboard-grid-main { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .bottom-nav { display: flex; padding-bottom: env(safe-area-inset-bottom, 12px); }
+            .app-container { padding-bottom: 70px; }
+            .navbar { padding: 0 16px; }
+            .search-bar { display: none; }
+            .main-scroll { padding: 16px; }
+            .stats-row { grid-template-columns: 1fr; }
+            .navbar-left { display: flex; }
+            .welcome-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .theme-toggle { bottom: 90px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+        const StatCard = ({ stat }) => {
+            const [count, setCount] = useState(0);
+            const target = stat.value;
+            
+            useEffect(() => {
+                let start = 0;
+                const duration = 1500;
+                const increment = target / (duration / 16);
+                const timer = setInterval(() => {
+                    start += increment;
+                    if (start >= target) {
+                        setCount(target);
+                        clearInterval(timer);
+                    } else {
+                        setCount(Math.ceil(start));
+                    }
+                }, 16);
+                return () => clearInterval(timer);
+            }, [target]);
+
+            return (
+                <div className="stat-card fade-in">
+                    <div className="stat-icon" style={{ backgroundColor: `${stat.color}20`, color: stat.color }}>
+                        <Icon name={stat.icon} size={28} />
+                    </div>
+                    <div className="stat-info">
+                        <h3>{count.toLocaleString()}</h3>
+                        <p>{window.t(stat.labelKey)}</p>
+                        <span className="subtext" style={{ color: stat.color }}>{stat.subtext}</span>
+                    </div>
+                </div>
+            );
+        };
+
+        const DonationCard = ({ donation, onAccept, onDecline }) => {
+            const [status, setStatus] = useState('available');
+
+            const handleAcceptClick = () => {
+                setStatus('accepting');
+                setTimeout(() => {
+                    setStatus('accepted');
+                    setTimeout(() => {
+                        onAccept(donation);
+                    }, 800);
+                }, 500);
+            };
+
+            if (status === 'declined') return null;
+
+            return (
+                <div className={`donation-card fade-in ${status === 'accepted' || status === 'accepting' ? 'accepted' : ''}`}>
+                    <div className="donation-card-header">
+                        <div>
+                            <h3 className="donation-card-title">{donation.name}</h3>
+                            <span className="category-badge">{donation.category}</span>
+                        </div>
+                        <span className="donation-qty">{donation.quantity}</span>
+                    </div>
+                    
+                    <div className="donation-meta">
+                        <div className="donation-meta-item">
+                            <Icon name="user" size={14} /> {donation.donor}
+                        </div>
+                        <div className="donation-meta-item">
+                            <Icon name="map-pin" size={14} color="var(--primary)" /> 
+                            <span className="distance-text">{donation.distance}</span>
+                        </div>
+                        <div className="donation-meta-item">
+                            <Icon name="clock" size={14} /> Posted {donation.posted}
+                        </div>
+                    </div>
+
+                    <div className={`expiry-badge expiry-${donation.expiryLevel}`}>
+                        {donation.expiryLevel === 'red' && "⚠️ "}
+                        {donation.expiryText}
+                    </div>
+
+                    <div className="donation-actions">
+                        {status === 'available' ? (
+                            <>
+                                <button className="btn-accept" onClick={handleAcceptClick}>
+                                    Accept <Icon name="check" size={16} />
+                                </button>
+                                <button className="btn-decline" onClick={() => setStatus('declined')}>
+                                    Decline
+                                </button>
+                            </>
+                        ) : (
+                            <button className="btn-accept" style={{ width: '100%', cursor: 'default' }}>
+                                Accepted <Icon name="check-circle-2" size={16} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+
+        const LanguageSwitcher = () => {
+            const [lang, setLang] = useState(window.getLang());
+            const toggleLang = (newLang) => {
+                window.setLang(newLang);
+                setLang(newLang);
+                window.location.reload();
+            };
+            return (
+                <div className="lang-switcher" style={{ display: 'flex', gap: '4px', background: 'var(--surface)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'english' ? 'var(--primary)' : 'transparent', color: lang === 'english' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('english')}>🇬🇧 EN</button>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'hindi' ? 'var(--primary)' : 'transparent', color: lang === 'hindi' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('hindi')}>🇮🇳 HI</button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+            const [sidebarOpen, setSidebarOpen] = useState(false);
+            const [activeTab, setActiveTab] = useState('Overview');
+            const [filter, setFilter] = useState('All');
+            const [assignModalOpen, setAssignModalOpen] = useState(false);
+            const [selectedRowId, setSelectedRowId] = useState(null);
+            const [selectedVolunteerId, setSelectedVolunteerId] = useState('');
+
+            // Food SOS State
+            const [showSosBanner, setShowSosBanner] = useState(true);
+            const [sosAlerts, setSosAlerts] = useState([
+                { id: 'sos1', level: 'CRITICAL', timeAgo: '45 min ago', donor: 'Raj Restaurant', distance: '1.2 km — Connaught Place', foodType: 'Cooked Food', quantity: '200 plates biryani', expiryTimestamp: Date.now() + 60 * 60 * 1000, notes: 'Event cancel ho gaya' },
+                { id: 'sos2', level: 'HIGH', timeAgo: '12 min ago', donor: 'Priya Sharma', distance: '2.8 km — Lajpat Nagar', foodType: 'Raw Vegetables', quantity: '30 kg mix sabzi', expiryTimestamp: Date.now() + 2 * 60 * 60 * 1000, notes: 'Market se extra le aaya' }
+            ]);
+            const [acceptedSosList, setAcceptedSosList] = useState([
+                { id: 'sos3', donor: 'Sharma Ji Kitchen', food: '150 plates dal chawal', volunteer: 'Rahul Kumar', progress: 60, status: 'En Route', isDelivered: false }
+            ]);
+            const [sosHistory, setSosHistory] = useState([
+                { date: '20 Jan', donor: 'Raj Restaurant', food: 'Cooked', qty: '200 plates', respTime: '8 min', status: 'Resolved ✅' },
+                { date: '18 Jan', donor: 'Priya Sharma', food: 'Vegetables', qty: '25 kg', respTime: '15 min', status: 'Resolved ✅' },
+                { date: '15 Jan', donor: 'Hotel Crown', food: 'Mixed', qty: '100 plates', respTime: '11 min', status: 'Resolved ✅' },
+                { date: '10 Jan', donor: 'Rohan Gupta', food: 'Packaged', qty: '50 boxes', respTime: '22 min', status: 'Resolved ✅' },
+                { date: '5 Jan', donor: 'ABC Caterers', food: 'Cooked', qty: '300 plates', respTime: '—', status: 'Expired ❌' }
+            ]);
+            
+            const [sosAcceptModal, setSosAcceptModal] = useState({ open: false, sos: null, step: 'form' });
+            const [sosDeclineModal, setSosDeclineModal] = useState({ open: false, sosId: null });
+            const [sosFormData, setSosFormData] = useState({ arrivalTime: '15 minutes', volunteerName: '', vehicleType: '🚗 Car', message: 'Hum aa rahe hain!' });
+            const [showConfetti, setShowConfetti] = useState(false);
+            const [currentTime, setCurrentTime] = useState(Date.now());
+
+            // NGO SOS Sending State
+            const [ngoSosModal, setNgoSosModal] = useState({ open: false, step: 1, formData: { type: 'General Emergency', people: '100-500 people', urgency: 'High' } });
+            const [activeNgoSos, setActiveNgoSos] = useState(false);
+            const [sendingProgressText, setSendingProgressText] = useState('Alert bheja ja raha hai...');
+            const [incomingDonors, setIncomingDonors] = useState([]);
+            const [ngoSosHistorySent, setNgoSosHistorySent] = useState([
+                { date: '20 Jan', type: 'Flood Relief', people: '500 people', donors: '6 donors', respTime: '15 min', status: 'Resolved ✅' },
+                { date: '15 Jan', type: 'Orphanage', people: '80 people', donors: '2 donors', respTime: '22 min', status: 'Resolved ✅' },
+                { date: '10 Jan', type: 'Community Event', people: '200 people', donors: '4 donors', respTime: '18 min', status: 'Resolved ✅' },
+                { date: '5 Jan', type: 'Hospital Patients', people: '120 people', donors: '3 donors', respTime: '25 min', status: 'Resolved ✅' },
+                { date: '1 Jan', type: 'General Emergency', people: '300 people', donors: '5 donors', respTime: '—', status: 'Expired ❌' }
+            ]);
+
+            // NGO SOS Logic
+            const handleSendNgoSos = () => {
+                setNgoSosModal(prev => ({ ...prev, step: 2 }));
+                setSendingProgressText('Alert bheja ja raha hai...');
+                setTimeout(() => setSendingProgressText('45 Donors ko notify kiya...'), 1500);
+                setTimeout(() => setSendingProgressText('Responses ka wait kar rahe hain...'), 3000);
+                setTimeout(() => setNgoSosModal(prev => ({ ...prev, step: 3 })), 3500);
+            };
+
+            const handleConfirmNgoSos = () => {
+                setNgoSosModal({ open: false, step: 1, formData: {} });
+                setActiveNgoSos(true);
+                setIncomingDonors([
+                    { id: 1, donor: 'Raj Restaurant', food: '150 plates dal chawal', eta: '8 minutes remaining', progress: 80, status: 'On the way 🚗', volunteer: 'Amit Kumar', phone: '98765XXXXX' },
+                    { id: 2, donor: 'Hotel Crown Plaza', food: '200 plates mixed', eta: '22 minutes remaining', progress: 30, status: 'Preparing 📦', volunteer: '', phone: '' }
+                ]);
+            };
+
+            const handleCancelNgoSos = () => {
+                setActiveNgoSos(false);
+                setIncomingDonors([]);
+            };
+
+            const markIncomingReceived = (id) => {
+                setIncomingDonors(prev => prev.filter(d => d.id !== id));
+                setShowConfetti(true);
+                setTimeout(() => setShowConfetti(false), 3000);
+            };
+
+            // Map Tracking State
+            const [trackModalOpen, setTrackModalOpen] = useState(false);
+            const [trackedDonation, setTrackedDonation] = useState(null);
+            const [donorLoc, setDonorLoc] = useState([28.6239, 77.2190]); // Demo initial
+            const [ngoLoc] = useState([28.6139, 77.2090]); // Fixed demo NGO loc
+            const [locStatus, setLocStatus] = useState('DETECTING');
+            const mapRef = useRef(null);
+            const mapInstanceRef = useRef(null);
+            const donorMarkerRef = useRef(null);
+
+            const handleTrackDonor = (donation) => {
+                setTrackedDonation(donation);
+                setTrackModalOpen(true);
+                setLocStatus('DETECTING');
+                
+                // Fetch location simulation
+                setTimeout(() => {
+                    setLocStatus('ON');
+                    setDonorLoc([28.6239 + (Math.random() - 0.5) * 0.05, 77.2190 + (Math.random() - 0.5) * 0.05]);
+                }, 1000);
+            };
+
+            const closeTrackModal = () => {
+                setTrackModalOpen(false);
+                setTrackedDonation(null);
+                if (mapInstanceRef.current) {
+                    mapInstanceRef.current.remove();
+                    mapInstanceRef.current = null;
+                }
+            };
+            
+            // Map polling and initialization inside the modal
+            useEffect(() => {
+                let interval;
+                if (trackModalOpen && trackedDonation) {
+                    interval = setInterval(() => {
+                        if (locStatus === 'ON') {
+                            const newLat = donorLoc[0] + (Math.random() - 0.5) * 0.001;
+                            const newLng = donorLoc[1] + (Math.random() - 0.5) * 0.001;
+                            setDonorLoc([newLat, newLng]);
+                            
+                            if (donorMarkerRef.current) {
+                                donorMarkerRef.current.setLatLng([newLat, newLng]);
+                            }
+                        }
+                    }, 5000); // 5s demo polling
+                }
+                return () => clearInterval(interval);
+            }, [trackModalOpen, trackedDonation, locStatus, donorLoc]);
+
+            useEffect(() => {
+                if (trackModalOpen && mapRef.current && !mapInstanceRef.current && typeof L !== 'undefined') {
+                    const map = L.map(mapRef.current).setView(ngoLoc, 13);
+                    mapInstanceRef.current = map;
+
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors'
+                    }).addTo(map);
+
+                    const ngoIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color:#3b82f6; width:24px; height:24px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.5);"></div>`,
+                        iconSize: [24, 24], iconAnchor: [12, 12]
+                    });
+                    L.marker(ngoLoc, {icon: ngoIcon}).addTo(map).bindPopup("<b>NGO Location</b>");
+
+                    const donorIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="position:relative;">
+                                 <div style="background-color:#22c55e; width:24px; height:24px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.5); position:relative; z-index:2;"></div>
+                                 <div style="position:absolute; top:-8px; left:-8px; width:40px; height:40px; border-radius:50%; background-color:rgba(34,197,94,0.4); animation:pulseRing 2s infinite; z-index:1;"></div>
+                               </div>`,
+                        iconSize: [24, 24], iconAnchor: [12, 12]
+                    });
+                    
+                    donorMarkerRef.current = L.marker(donorLoc, {icon: donorIcon}).addTo(map).bindPopup("<b>Donor Location</b>");
+                    L.polyline([donorLoc, ngoLoc], {color: '#f97316', dashArray: '5, 10'}).addTo(map);
+                    map.fitBounds(L.latLngBounds(donorLoc, ngoLoc), { padding: [50, 50] });
+                }
+            }, [trackModalOpen, locStatus]);
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            // Food Expiry Alert Feature
+            useEffect(() => {
+                fetch('http://localhost:5000/api/donations/expiring')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            data.forEach(item => {
+                                alert('⚠️ Warning: ' + item.foodName + ' expiring soon!');
+                            });
+                        }
+                    })
+                    .catch(err => console.error("Error fetching expiring donations:", err));
+            }, []);
+
+            useEffect(() => {
+                document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+            }, [darkMode]);
+
+            const navItems = [
+                { id: "Overview", nameKey: "ngo_nav_overview", icon: "home", href: "ngo_dashboard.html" },
+                { id: "Available", nameKey: "ngo_nav_available", icon: "package", href: "ngo_dashboard.html" },
+                { id: "Accepted", nameKey: "ngo_nav_accepted", icon: "check-circle", href: "ngo_accepted.html" },
+                { id: "Schedule", nameKey: "ngo_nav_schedule", icon: "calendar", href: "ngo_schedule.html" },
+                { id: "Volunteers", nameKey: "ngo_nav_volunteers", icon: "users", href: "#" },
+                { id: "Reports", nameKey: "ngo_nav_reports", icon: "bar-chart", href: "#" },
+                { id: "Profile", nameKey: "ngo_nav_profile", icon: "building", href: "#" }
+            ];
+
+            const stats = [
+                { labelKey: "ngo_stat_available", value: 8, icon: "package", color: "#22c55e", subtext: "+2 this hour" },
+                { labelKey: "ngo_stat_accepted", value: 3, icon: "check-circle", color: "#3b82f6", subtext: "On track" },
+                { labelKey: "ngo_stat_received", value: 156, icon: "heart", color: "#f97316", subtext: "+14 this month" },
+                { labelKey: "ngo_stat_volunteers", value: 12, icon: "users", color: "#eab308", subtext: "4 currently busy" }
+            ];
+
+            const [availableDonations, setAvailableDonations] = useState([
+                { id: 1, name: "Biryani", category: "Cooked Food", quantity: "5kg", donor: "Anonymous Donor", distance: "1.2 km away", posted: "5 mins ago", expiryText: "Expiring in 3hrs", expiryLevel: "red" },
+                { id: 2, name: "Bread Packets", category: "Packaged Food", quantity: "10 boxes", donor: "Fresh Bakery", distance: "2.3 km away", posted: "15 mins ago", expiryText: "Exp: Tomorrow", expiryLevel: "yellow" },
+                { id: 3, name: "Mixed Vegetables", category: "Raw Vegetables", quantity: "8kg", donor: "City Market", distance: "3.1 km away", posted: "30 mins ago", expiryText: "Exp: 2 days", expiryLevel: "green" },
+                { id: 4, name: "Cold Drinks", category: "Beverages", quantity: "12 bottles", donor: "Party Hall", distance: "4.5 km away", posted: "1 hr ago", expiryText: "Exp: 3 days", expiryLevel: "green" },
+                { id: 5, name: "Birthday Cake", category: "Bakery", quantity: "2kg", donor: "Sweet Treats", distance: "1.8 km away", posted: "2 hrs ago", expiryText: "Expiring in 5hrs", expiryLevel: "red" }
+            ]);
+
+            const [acceptedDonations, setAcceptedDonations] = useState([
+                { id: 101, name: "Dal Rice", quantity: "3kg", donor: "Anonymous", time: "2:00 PM", volunteer: "Amit Kumar", status: "In Transit" },
+                { id: 102, name: "Bread", quantity: "10 boxes", donor: "Fresh Bakery", time: "3:30 PM", volunteer: "Not Assigned", status: "Scheduled" },
+                { id: 103, name: "Vegetables", quantity: "8kg", donor: "City Market", time: "11:00 AM", volunteer: "Priya Singh", status: "Delivered" },
+                { id: 104, name: "Fruits", quantity: "5kg", donor: "Daily Mart", time: "4:00 PM", volunteer: "Not Assigned", status: "Scheduled" }
+            ]);
+
+            const scheduleItems = [
+                { time: "11:00 AM", food: "Vegetables (8kg)", address: "City Market, Block B", volunteer: "Priya Singh", statusColor: "var(--primary)" },
+                { time: "2:00 PM", food: "Dal Rice (3kg)", address: "Sector 14, Main Road", volunteer: "Amit Kumar", statusColor: "#eab308" },
+                { time: "3:30 PM", food: "Bread (10 boxes)", address: "Fresh Bakery, MG Road", volunteer: "Not Assigned", statusColor: "#ef4444" },
+            ];
+
+            const volunteers = [
+                { id: 1, name: "Amit Kumar", available: true },
+                { id: 2, name: "Priya Singh", available: false },
+                { id: 3, name: "Ravi Verma", available: true },
+                { id: 4, name: "Neha Gupta", available: true },
+            ];
+
+            const handleAcceptDonation = (donation) => {
+                setAvailableDonations(prev => prev.filter(d => d.id !== donation.id));
+                setAcceptedDonations(prev => [
+                    {
+                        id: Date.now(),
+                        name: donation.name,
+                        quantity: donation.quantity,
+                        donor: donation.donor,
+                        time: "TBD",
+                        volunteer: "Not Assigned",
+                        status: "Scheduled"
+                    },
+                    ...prev
+                ]);
+            };
+
+            const openAssignModal = (rowId) => {
+                setSelectedRowId(rowId);
+                setSelectedVolunteerId('');
+                setAssignModalOpen(true);
+            };
+
+            const confirmAssign = () => {
+                const vol = volunteers.find(v => v.id === selectedVolunteerId);
+                if (vol) {
+                    setAcceptedDonations(prev => prev.map(d => 
+                        d.id === selectedRowId ? { ...d, volunteer: vol.name } : d
+                    ));
+                }
+                setAssignModalOpen(false);
+            };
+
+            const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+            const filteredAvailable = availableDonations.filter(d => {
+                if (filter === 'All') return true;
+                if (filter === 'Nearby') return parseFloat(d.distance) < 2.5;
+                if (filter === 'Expiring Soon') return d.expiryLevel === 'red';
+                return d.category.includes(filter);
+            });
+
+            // SOS Logic
+            const getTimerDetails = (expiry) => {
+                const diff = expiry - currentTime;
+                if (diff <= 0) return { text: "Expired", class: "red", shake: false };
+                
+                const m = Math.floor(diff / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                const text = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                
+                let cls = "green";
+                let shake = false;
+                if (m < 10) { cls = "red"; shake = true; }
+                else if (m < 30) { cls = "red"; }
+                else if (m < 60) { cls = "orange"; }
+                
+                return { text, class: cls, shake };
+            };
+
+            const handleAcceptSosConfirm = () => {
+                setSosAcceptModal(prev => ({ ...prev, step: 'success' }));
+                setTimeout(() => {
+                    setSosAlerts(prev => prev.filter(s => s.id !== sosAcceptModal.sos.id));
+                    setSosAcceptModal({ open: false, sos: null, step: 'form' });
+                }, 3000);
+            };
+
+            const handleDeclineSosConfirm = () => {
+                setSosAlerts(prev => prev.map(s => s.id === sosDeclineModal.sosId ? { ...s, dismissing: true } : s));
+                setTimeout(() => {
+                    setSosAlerts(prev => prev.filter(s => s.id !== sosDeclineModal.sosId));
+                }, 500);
+                setSosDeclineModal({ open: false, sosId: null });
+            };
+
+            const markSosPickedUp = (id) => {
+                setAcceptedSosList(prev => prev.map(s => s.id === id ? { ...s, isDelivered: true, status: 'Delivered ✅', progress: 100 } : s));
+                setShowConfetti(true);
+                setTimeout(() => setShowConfetti(false), 3000);
+            };
+            
+            const Confetti = () => {
+                if (!showConfetti) return null;
+                const colors = ['#22c55e', '#ef4444', '#3b82f6', '#f97316', '#eab308'];
+                return Array.from({ length: 50 }).map((_, i) => (
+                    <div key={i} className="confetti" style={{
+                        left: `${Math.random() * 100}vw`,
+                        backgroundColor: colors[Math.floor(Math.random() * colors.length)],
+                        animationDuration: `${Math.random() * 1 + 1}s`,
+                        animationDelay: `${Math.random() * 0.2}s`
+                    }} />
+                ));
+            };
+
+            return (
+                <div className="app-container">
+                    {/* Sidebar Overlay */}
+                    <div className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}></div>
+
+                    {/* Sidebar */}
+                    <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'open' : ''}`}>
+                        <a href="react-version.html" className="sidebar-header" style={{ textDecoration: 'none' }}>
+                            <Icon name="heart" color="var(--primary)" size={28} />
+                            <h2>FoodBridge</h2>
+                        </a>
+                        <button className="collapse-btn hide-mobile" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} />
+                        </button>
+                        <div className="nav-items">
+                            {navItems.map(item => (
+                                <a 
+                                    key={item.id} 
+                                    href={item.href}
+                                    style={{ textDecoration: 'none' }}
+                                    className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                                    onClick={(e) => {
+                                        setSidebarOpen(false);
+                                        if (item.href === 'ngo_dashboard.html') {
+                                            e.preventDefault();
+                                            setActiveTab(item.id);
+                                        }
+                                    }}
+                                >
+                                    <Icon name={item.icon} size={22} />
+                                    <span>{window.t(item.nameKey)}</span>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="content-wrapper">
+                        {/* Navbar */}
+                        <div className="navbar">
+                            <div className="navbar-left" style={{ display: 'flex' }}>
+                                <button className="btn-icon show-mobile" onClick={() => setSidebarOpen(true)} style={{ marginRight: '10px' }}>
+                                    <Icon name="menu" size={24} />
+                                </button>
+                                <Icon name="heart" color="var(--primary)" size={28} className="hide-mobile" />
+                                <h2 className="hide-mobile" style={{ marginLeft: '10px', color: 'var(--primary)', margin: 0, fontSize: '20px' }}>FoodBridge</h2>
+                                <h2 className="show-mobile" style={{ color: 'var(--primary)', margin: 0, fontSize: '18px' }}>{window.t('nav_dashboard')}</h2>
+                            </div>
+                            
+                            <div className="search-bar hide-mobile">
+                                <Icon name="search" size={18} color="var(--text-muted)" />
+                                <input type="text" placeholder={window.t('common_search')} />
+                            </div>
+                            
+                            <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <LanguageSwitcher />
+                                <div className="notification-bell" onClick={() => window.location.href = 'notifications.html'}>
+                                    <Icon name="bell" size={24} />
+                                    <span className="badge-red">5</span>
+                                </div>
+                                <div className="user-profile" onClick={() => window.location.href = 'profile.html'}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <img src="https://ui-avatars.com/api/?name=Helping+Hands&background=22c55e&color=fff" alt="NGO" />
+                                        <div className="hide-mobile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                            <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}>
+                                                Helping Hands Foundation 
+                                                <Icon name="check-circle-2" size={14} color="var(--primary)" />
+                                            </span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Verified NGO Partner</span>
+                                        </div>
+                                        <Icon name="chevron-down" size={16} className="hide-mobile" />
+                                    </div>
+                                </div>
+                                <button className="btn-icon hide-mobile" onClick={() => window.location.href = 'login.html'}>
+                                    <Icon name="log-out" size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+
+                        {/* Scrollable Content */}
+                        <div className="main-scroll">
+                            <Confetti />
+                            
+                            {/* Active NGO SOS Banner */}
+                            {activeNgoSos && (
+                                <div className="ngo-sos-banner fade-in">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div className="sos-pulse-dot" style={{ background: 'white', animation: 'pulse-orange 1.5s infinite' }}></div>
+                                        <span style={{ fontWeight: 600 }}>📢 Active Food Request — {incomingDonors.length} Donors responding</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <span>Sent 3 minutes ago</span>
+                                        <button className="btn-outline" style={{ borderColor: 'white', color: 'white', padding: '6px 16px', fontSize: '14px' }} onClick={handleCancelNgoSos}>Cancel Request</button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* NGO SOS Incoming Donations Section */}
+                            {activeNgoSos && incomingDonors.length > 0 && (
+                                <div style={{ marginBottom: '32px' }} className="fade-in">
+                                    <h2 style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>🚗 Donors En Route</h2>
+                                    <p style={{ color: 'var(--text-muted)', marginTop: '-10px', marginBottom: '16px' }}>Yeh donors aa rahe hain</p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        {incomingDonors.map(donor => (
+                                            <div key={donor.id} className="card" style={{ borderLeft: '4px solid var(--ngo-sos-orange)', padding: '20px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                                    <span style={{ background: 'var(--status-accepted-bg)', color: 'var(--status-accepted)', padding: '6px 12px', borderRadius: '99px', fontWeight: 600, fontSize: '13px' }}>{donor.status}</span>
+                                                    <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>ETA: {donor.eta}</span>
+                                                </div>
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                                                    <div><div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Donor</div><div style={{ fontWeight: 600 }}>{donor.donor}</div></div>
+                                                    <div><div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Food</div><div style={{ fontWeight: 600 }}>{donor.food}</div></div>
+                                                    {donor.volunteer && (
+                                                        <div><div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Volunteer</div><div style={{ fontWeight: 600 }}>{donor.volunteer} ({donor.phone})</div></div>
+                                                    )}
+                                                </div>
+                                                
+                                                <div style={{ height: '8px', background: 'var(--border)', borderRadius: '99px', overflow: 'hidden', marginBottom: '20px' }}>
+                                                    <div style={{ height: '100%', background: 'var(--ngo-sos-orange)', width: `${donor.progress}%`, transition: 'width 1s ease-out' }}></div>
+                                                </div>
+                                                
+                                                {donor.progress === 80 ? (
+                                                    <button className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'var(--primary)' }} onClick={() => markIncomingReceived(donor.id)}>
+                                                        ✅ Mark as Received
+                                                    </button>
+                                                ) : (
+                                                    <button className="btn-outline" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                                        📞 Call Donor
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Flashing Emergency Banner */}
+                            {showSosBanner && (
+                                <div className="sos-banner">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div className="sos-pulse-dot"></div>
+                                        <Icon name="alert-triangle" color="white" />
+                                        <span style={{ fontWeight: 600 }}>New SOS Alert! — Raj Restaurant — 1.2km door</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button className="btn-outline" style={{ borderColor: 'white', color: 'white', padding: '6px 16px', fontSize: '14px', whiteSpace: 'nowrap' }} onClick={() => document.getElementById('sos-section').scrollIntoView({behavior: 'smooth'})}>View Details</button>
+                                        <button className="btn-icon" style={{ color: 'white' }} onClick={() => setShowSosBanner(false)}>
+                                            <Icon name="x" size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="welcome-header fade-in">
+                                <div>
+                                    <h1 style={{ fontSize: '28px', margin: '0 0 4px 0' }}>{window.t('ngo_welcome')}, Helping Hands Foundation! 🏢</h1>
+                                    <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '16px' }}>{availableDonations.length} {window.t('ngo_available_subtitle')}</p>
+                                </div>
+                                <div style={{ background: 'var(--surface)', padding: '8px 16px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: '500' }}>{todayStr}</span>
+                                </div>
+                            </div>
+
+                            <div className="stats-row">
+                                {stats.map((s, i) => <StatCard key={i} stat={s} />)}
+                            </div>
+
+                            {/* SOS Alerts Section */}
+                            <div id="sos-section" style={{ marginBottom: '32px' }} className="fade-in">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                                    <h2 style={{ fontSize: '24px', margin: 0, color: 'var(--sos-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        🆘 {window.t('ngo_sos_alerts')}
+                                    </h2>
+                                    {sosAlerts.length > 0 && (
+                                        <span style={{ background: 'var(--sos-red)', color: 'white', padding: '4px 12px', borderRadius: '99px', fontSize: '13px', fontWeight: 700, animation: 'pulse-white 1.5s infinite' }}>
+                                            {sosAlerts.length} New
+                                        </span>
+                                    )}
+                                </div>
+                                <p style={{ color: 'var(--sos-red)', marginTop: '-10px', marginBottom: '16px', fontWeight: 500 }}>Turant response chahiye</p>
+                                
+                                {sosAlerts.length > 0 ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        {sosAlerts.map(sos => {
+                                            const timer = getTimerDetails(sos.expiryTimestamp);
+                                            return (
+                                                <div key={sos.id} className={`sos-card ${timer.shake ? 'urgent' : ''} ${sos.dismissing ? 'dismissing' : ''}`}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <span style={{ background: sos.level === 'CRITICAL' ? 'var(--sos-red)' : '#f97316', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 800 }}>
+                                                                {sos.level === 'CRITICAL' ? '🔴' : '🟠'} {sos.level}
+                                                            </span>
+                                                            <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}><Icon name="clock" size={14} style={{display:'inline', marginBottom:'-2px'}} /> {sos.timeAgo}</span>
+                                                        </div>
+                                                        <div className={`timer-badge ${timer.class}`}>
+                                                            ⏰ Expires in: {timer.text}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+                                                        <div style={{ flex: '1 1 200px' }}>
+                                                            <h3 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>{sos.donor}</h3>
+                                                            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14px', display:'flex', alignItems:'center', gap:'4px' }}>
+                                                                <Icon name="map-pin" size={14} color="var(--primary)" /> {sos.distance}
+                                                            </p>
+                                                        </div>
+                                                        <div style={{ flex: '1 1 200px', background: 'var(--surface-solid)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Food Type</span>
+                                                                <span style={{ fontWeight: 600, fontSize: '14px' }}>{sos.foodType}</span>
+                                                            </div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Quantity</span>
+                                                                <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--primary)' }}>{sos.quantity}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {sos.notes && (
+                                                        <div style={{ background: 'var(--background)', padding: '12px', borderRadius: '8px', fontSize: '14px', marginBottom: '16px', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                                                            <strong>Notes:</strong> "{sos.notes}"
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                                        <button className="btn-primary" style={{ background: 'var(--primary)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minWidth: '150px' }} onClick={() => setSosAcceptModal({ open: true, sos, step: 'form' })}>
+                                                            <Icon name="check-circle" size={18} /> Accept SOS
+                                                        </button>
+                                                        <button className="btn-outline" style={{ flex: 1, color: 'var(--sos-red)', borderColor: 'var(--sos-red)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minWidth: '120px' }} onClick={() => setSosDeclineModal({ open: true, sosId: sos.id })}>
+                                                            <Icon name="x-circle" size={18} /> Decline
+                                                        </button>
+                                                        <button className="btn-outline" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flex: 1, minWidth: '120px' }}>
+                                                            <Icon name="phone" size={18} /> Call
+                                                        </button>
+                                                        <button className="btn-outline" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flex: 1, minWidth: '120px' }}>
+                                                            <Icon name="map" size={18} /> Map
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div style={{ padding: '24px', background: 'var(--surface)', borderRadius: '16px', textAlign: 'center', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                                        No active SOS alerts.
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Accepted SOS — In Progress */}
+                            {acceptedSosList.length > 0 && (
+                                <div style={{ marginBottom: '40px' }} className="fade-in">
+                                    <h2 style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>✅ Accepted — In Progress</h2>
+                                    {acceptedSosList.map(sos => (
+                                        <div key={sos.id} className="card" style={{ borderLeft: '4px solid var(--primary)', padding: '20px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                                <span style={{ background: 'var(--status-completed-bg)', color: 'var(--status-completed)', padding: '6px 12px', borderRadius: '99px', fontWeight: 600, fontSize: '13px' }}>{sos.status}</span>
+                                                <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>ETA: 10 minutes remaining</span>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                                                <div><div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Donor</div><div style={{ fontWeight: 600 }}>{sos.donor}</div></div>
+                                                <div><div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Food</div><div style={{ fontWeight: 600 }}>{sos.food}</div></div>
+                                                <div><div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Volunteer</div><div style={{ fontWeight: 600 }}>{sos.volunteer}</div></div>
+                                            </div>
+                                            
+                                            <div style={{ height: '8px', background: 'var(--border)', borderRadius: '99px', overflow: 'hidden', marginBottom: '20px' }}>
+                                                <div style={{ height: '100%', background: 'var(--primary)', width: `${sos.progress}%`, transition: 'width 1s ease-out' }}></div>
+                                            </div>
+                                            
+                                            {!sos.isDelivered && (
+                                                <div style={{ display: 'flex', gap: '12px' }}>
+                                                    <button className="btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => markSosPickedUp(sos.id)}>
+                                                        Mark Picked Up <Icon name="check" size={18} />
+                                                    </button>
+                                                    <button className="btn-outline" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderColor: 'var(--primary)', color: 'var(--primary)' }} onClick={() => handleTrackDonor({ donor: sos.donor, food: sos.food })}>
+                                                        <Icon name="map-pin" size={18} /> Track Donor
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div style={{ marginBottom: '32px' }}>
+                                <h2 style={{ fontSize: '20px', marginBottom: '16px' }}>Available Donations Near You</h2>
+                                <div className="filter-tabs">
+                                    {['All', 'Nearby', 'Expiring Soon', 'Cooked', 'Packaged', 'Raw'].map(tab => (
+                                        <button key={tab} className={`tab-btn ${filter === tab ? 'active' : ''}`} onClick={() => setFilter(tab)}>
+                                            {tab}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="donation-grid">
+                                    {filteredAvailable.map(d => (
+                                        <DonationCard key={d.id} donation={d} onAccept={handleAcceptDonation} onDecline={() => {}} />
+                                    ))}
+                                    {filteredAvailable.length === 0 && (
+                                        <p style={{ color: 'var(--text-muted)' }}>No donations match this filter.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="dashboard-grid-main">
+                                {/* Left Col - Table */}
+                                <div className="card fade-in">
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                        <h2 style={{ fontSize: '20px', margin: 0 }}>Accepted Donations</h2>
+                                        <a href="ngo_accepted.html" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '14px', fontWeight: 600 }}>View All</a>
+                                    </div>
+                                    <div className="table-responsive">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Food Item</th>
+                                                    <th>Donor</th>
+                                                    <th>Quantity</th>
+                                                    <th>Pickup Time</th>
+                                                    <th>Volunteer</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {acceptedDonations.map(d => (
+                                                    <tr key={d.id} className="fade-in-row">
+                                                        <td style={{ fontWeight: 500 }}>{d.name}</td>
+                                                        <td>{d.donor}</td>
+                                                        <td>{d.quantity}</td>
+                                                        <td>{d.time}</td>
+                                                        <td>{d.volunteer}</td>
+                                                        <td><span className={`badge status-${d.status.replace(' ', '')}`}>{d.status}</span></td>
+                                                        <td>
+                                                            {d.volunteer === 'Not Assigned' ? (
+                                                                <button className="btn-assign" onClick={() => openAssignModal(d.id)}>Assign Volunteer</button>
+                                                            ) : (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Assigned ✓</span>
+                                                                    <button className="btn-outline" style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', borderColor: 'var(--primary)', color: 'var(--primary)' }} onClick={() => handleTrackDonor({ donor: d.donor, food: d.name })}>
+                                                                        <Icon name="map-pin" size={12} /> Track
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* SOS History Table */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '40px' }}>
+                                        <h2 style={{ fontSize: '20px', margin: 0, display: 'flex', alignItems:'center', gap:'8px' }}><Icon name="history" size={20} /> SOS History</h2>
+                                    </div>
+                                    <div className="table-responsive">
+                                        <table className="sos-history-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Donor</th>
+                                                    <th>Food</th>
+                                                    <th>Qty</th>
+                                                    <th>Response Time</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {sosHistory.map((h, i) => (
+                                                    <tr key={i}>
+                                                        <td style={{ color: 'var(--text-muted)' }}>{h.date}</td>
+                                                        <td style={{ fontWeight: 500 }}>{h.donor}</td>
+                                                        <td>{h.food}</td>
+                                                        <td>{h.qty}</td>
+                                                        <td>{h.respTime}</td>
+                                                        <td>{h.status}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* NGO SOS Sent History Table */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '40px' }}>
+                                        <h2 style={{ fontSize: '20px', margin: 0, display: 'flex', alignItems:'center', gap:'8px' }}><Icon name="send" size={20} /> Sent Emergency Requests</h2>
+                                    </div>
+                                    <div className="table-responsive">
+                                        <table className="sos-history-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Emergency Type</th>
+                                                    <th>People Fed</th>
+                                                    <th>Donors Helped</th>
+                                                    <th>Response Time</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {ngoSosHistorySent.map((h, i) => (
+                                                    <tr key={i}>
+                                                        <td style={{ color: 'var(--text-muted)' }}>{h.date}</td>
+                                                        <td style={{ fontWeight: 500 }}>{h.type}</td>
+                                                        <td>{h.people}</td>
+                                                        <td>{h.donors}</td>
+                                                        <td>{h.respTime}</td>
+                                                        <td>{h.status}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Right Col - Schedule & Actions */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                    
+                                    {/* NGO SOS Request Card */}
+                                    <div className="ngo-sos-card fade-in">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                                            <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%', display: 'flex', animation: 'pulse-orange 2s infinite' }}>
+                                                <Icon name="bell-ring" size={32} />
+                                            </div>
+                                        </div>
+                                        <h2 style={{ fontSize: '24px', margin: '0 0 8px 0', color: 'white' }}>Emergency Food Request 🆘</h2>
+                                        <p style={{ margin: '0 0 24px 0', fontSize: '15px', opacity: 0.9 }}>
+                                            Aapke paas khaane ki kami hai? Donors ko alert karein!
+                                        </p>
+                                        <button onClick={() => setNgoSosModal(prev => ({ ...prev, open: true }))} style={{ background: 'white', color: 'var(--ngo-sos-orange-dark)', border: 'none', padding: '14px 24px', width: '100%', borderRadius: '99px', fontSize: '16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '12px', fontFamily: 'Outfit' }}>
+                                            📢 Request Food Emergency
+                                        </button>
+                                        <p style={{ margin: 0, fontSize: '12px', opacity: 0.8, textAlign: 'center' }}>
+                                            5km ke saare donors ko instantly notify kiya jayega
+                                        </p>
+                                    </div>
+
+                                    {/* NGO SOS Stats Card */}
+                                    <div className="card fade-in" style={{ borderTop: '4px solid var(--ngo-sos-orange)' }}>
+                                        <h2 style={{ fontSize: '18px', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ngo-sos-orange-dark)' }}>
+                                            <Icon name="megaphone" size={20} /> Emergency Request Stats
+                                        </h2>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                            <div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Total Requests Sent</div>
+                                                <div style={{ fontSize: '18px', fontWeight: 700 }}>🆘 18</div>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Total People Fed</div>
+                                                <div style={{ fontSize: '18px', fontWeight: 700 }}>👥 4,200</div>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Avg Response Time</div>
+                                                <div style={{ fontSize: '18px', fontWeight: 700 }}>⚡ 16 min</div>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Donor Network</div>
+                                                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)' }}>🤝 45</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* SOS Stats Card */}
+                                    <div className="card fade-in" style={{ borderTop: '4px solid var(--sos-red)' }}>
+                                        <h2 style={{ fontSize: '18px', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--sos-dark)' }}>
+                                            <Icon name="activity" size={20} /> SOS Response Stats
+                                        </h2>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                            <div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Avg Response</div>
+                                                <div style={{ fontSize: '18px', fontWeight: 700 }}>⚡ 12 min</div>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Total Accepted</div>
+                                                <div style={{ fontSize: '18px', fontWeight: 700 }}>✅ 24</div>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Emergency Meals</div>
+                                                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--primary)' }}>🍱 1,840</div>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Response Rate</div>
+                                                <div style={{ fontSize: '18px', fontWeight: 700, color: '#eab308' }}>🏆 94%</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="card fade-in">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                            <h2 style={{ fontSize: '20px', margin: 0 }}>Today's Pickup Schedule</h2>
+                                            <a href="ngo_schedule.html" style={{ color: 'var(--primary)', textDecoration: 'none', fontSize: '14px', fontWeight: 600 }}>View All</a>
+                                        </div>
+                                        <div className="schedule-timeline">
+                                            {scheduleItems.map((item, i) => (
+                                                <div key={i} className="schedule-item">
+                                                    <div className="schedule-time">{item.time}</div>
+                                                    <div className="schedule-dot" style={{ borderColor: item.statusColor }}></div>
+                                                    <div className="schedule-content">
+                                                        <h4>{item.food}</h4>
+                                                        <p style={{ marginBottom: '6px' }}><Icon name="map-pin" size={14} color="var(--primary)" /> {item.address}</p>
+                                                        <p><Icon name="user" size={14} /> {item.volunteer}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="card fade-in">
+                                        <h2 style={{ fontSize: '20px', margin: '0 0 12px 0' }}>Quick Actions</h2>
+                                        <div className="quick-actions-grid">
+                                            <button className="action-btn">
+                                                <Icon name="megaphone" size={20} color="var(--primary)" />
+                                                Request Food
+                                            </button>
+                                            <button className="action-btn">
+                                                <Icon name="user-plus" size={20} color="#3b82f6" />
+                                                Add Volunteer
+                                            </button>
+                                            <button className="action-btn">
+                                                <Icon name="file-text" size={20} color="#eab308" />
+                                                Generate Report
+                                            </button>
+                                            <button className="action-btn">
+                                                <Icon name="send" size={20} color="#f97316" />
+                                                Send Update
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bottom Nav Mobile */}
+                    <div className="bottom-nav">
+                        {navItems.slice(0, 5).map(item => (
+                            <a 
+                                key={item.name} 
+                                href={item.href}
+                                style={{ textDecoration: 'none' }}
+                                className={`bottom-nav-item ${activeTab === item.name ? 'active' : ''}`}
+                                onClick={(e) => {
+                                    if (item.href === 'ngo_dashboard.html') {
+                                        e.preventDefault();
+                                        setActiveTab(item.name);
+                                    }
+                                }}
+                            >
+                                <Icon name={item.icon} size={24} />
+                                <span>{item.name}</span>
+                            </a>
+                        ))}
+                    </div>
+
+                    {/* Theme Toggle */}
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)} title="Toggle Theme">
+                        <Icon name={darkMode ? "sun" : "moon"} size={24} />
+                    </button>
+
+                    {/* Assign Volunteer Modal */}
+                    {assignModalOpen && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up">
+                                <div className="modal-header">
+                                    <h2>Assign Volunteer</h2>
+                                    <button className="btn-icon" onClick={() => setAssignModalOpen(false)}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                <div className="modal-body">
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>
+                                        Select Available Volunteer
+                                    </label>
+                                    <div className="volunteer-list">
+                                        {volunteers.map(v => (
+                                            <div 
+                                                key={v.id} 
+                                                className={`volunteer-option ${v.available ? '' : 'disabled'} ${selectedVolunteerId === v.id ? 'selected' : ''}`}
+                                                onClick={() => v.available && setSelectedVolunteerId(v.id)}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div className="avatar-small">{v.name.charAt(0)}</div>
+                                                    <span>{v.name}</span>
+                                                </div>
+                                                <div>
+                                                    {v.available ? (
+                                                        <Icon name="check-circle-2" color="var(--primary)" size={20} />
+                                                    ) : (
+                                                        <Icon name="minus-circle" color="#ef4444" size={20} />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button className="btn-outline" onClick={() => setAssignModalOpen(false)}>Cancel</button>
+                                        <button className="btn-primary" onClick={confirmAssign} disabled={!selectedVolunteerId}>
+                                            Confirm Assignment
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Accept SOS Modal */}
+                    {sosAcceptModal.open && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up" style={{ maxWidth: '500px' }}>
+                                {sosAcceptModal.step === 'form' ? (
+                                    <>
+                                        <div className="modal-header" style={{ background: 'var(--surface-solid)' }}>
+                                            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>✅ SOS Accept Karo</h2>
+                                            <button className="btn-icon" onClick={() => setSosAcceptModal({ open: false, sos: null, step: 'form' })}>
+                                                <Icon name="x" size={24} />
+                                            </button>
+                                        </div>
+                                        <div className="modal-body">
+                                            <div style={{ background: 'var(--sos-light)', borderLeft: '4px solid var(--sos-red)', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
+                                                <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '8px' }}>{sosAcceptModal.sos.donor}</div>
+                                                <div style={{ fontSize: '14px', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <div><Icon name="map-pin" size={12} /> {sosAcceptModal.sos.distance}</div>
+                                                    <div><Icon name="package" size={12} /> {sosAcceptModal.sos.quantity} {sosAcceptModal.sos.foodType}</div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>1. Arrival Time</label>
+                                                    <select className="form-control" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)' }} value={sosFormData.arrivalTime} onChange={e => setSosFormData({...sosFormData, arrivalTime: e.target.value})}>
+                                                        <option>15 minutes</option><option>30 minutes</option><option>45 minutes</option><option>1 hour</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>2. Volunteer Name</label>
+                                                    <input type="text" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)' }} placeholder="Enter name..." value={sosFormData.volunteerName} onChange={e => setSosFormData({...sosFormData, volunteerName: e.target.value})} />
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>3. Vehicle Type</label>
+                                                    <select className="form-control" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)' }} value={sosFormData.vehicleType} onChange={e => setSosFormData({...sosFormData, vehicleType: e.target.value})}>
+                                                        <option>🚗 Car</option><option>🛵 Bike</option><option>🚐 Van</option><option>🚶 Walking</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>4. Message to Donor</label>
+                                                    <textarea style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)' }} rows="2" value={sosFormData.message} onChange={e => setSosFormData({...sosFormData, message: e.target.value})}></textarea>
+                                                </div>
+                                            </div>
+
+                                            <div className="modal-actions">
+                                                <button className="btn-outline" onClick={() => setSosAcceptModal({ open: false, sos: null, step: 'form' })}>Cancel</button>
+                                                <button className="btn-primary" onClick={handleAcceptSosConfirm}>✅ Confirm Pickup</button>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="modal-body" style={{ textAlign: 'center', padding: '40px 24px' }}>
+                                        <div style={{ width: '80px', height: '80px', background: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', animation: 'bounceCheck 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+                                            <Icon name="check" size={40} color="white" />
+                                        </div>
+                                        <h2 style={{ fontSize: '24px', marginBottom: '8px', color: 'var(--primary)' }}>SOS Accept Ho Gaya! ✅</h2>
+                                        <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Donor ko notify kar diya</p>
+                                        
+                                        <div style={{ background: 'var(--background)', padding: '20px', borderRadius: '16px', textAlign: 'left', marginBottom: '24px', border: '1px solid var(--border)' }}>
+                                            <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '12px' }}>{sosAcceptModal.sos.donor}</div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '14px' }}>
+                                                <div><span style={{ color: 'var(--text-muted)' }}>Arriving in:</span><br/><strong>{sosFormData.arrivalTime}</strong></div>
+                                                <div><span style={{ color: 'var(--text-muted)' }}>Volunteer:</span><br/><strong>{sosFormData.volunteerName || 'Not Assigned'}</strong></div>
+                                                <div><span style={{ color: 'var(--text-muted)' }}>Vehicle:</span><br/><strong>{sosFormData.vehicleType}</strong></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                                            <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="phone" size={18} /> Call Donor</button>
+                                            <button className="btn-primary" style={{ background: '#3b82f6', display: 'flex', alignItems: 'center', gap: '8px' }}><Icon name="map" size={18} /> Get Directions</button>
+                                            <button className="btn-outline" onClick={() => setSosAcceptModal({ open: false, sos: null, step: 'form' })}>Done</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Decline SOS Modal */}
+                    {sosDeclineModal.open && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up" style={{ maxWidth: '400px' }}>
+                                <div className="modal-header">
+                                    <h2 style={{ color: 'var(--sos-red)', fontSize: '20px', margin: 0 }}>SOS Decline Karo?</h2>
+                                    <button className="btn-icon" onClick={() => setSosDeclineModal({ open: false, sosId: null })}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                <div className="modal-body">
+                                    <label style={{ display: 'block', marginBottom: '12px', fontWeight: 500, fontSize: '14px' }}>Reason for declining:</label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                                        {['🚫 Volunteers nahi hain', '🚗 Vehicle nahi hai', '📍 Bahut door hai', '🍱 Storage full hai', '⏰ Time nahi hai'].map(reason => (
+                                            <label key={reason} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer' }}>
+                                                <input type="radio" name="declineReason" style={{ accentColor: 'var(--sos-red)', width: '18px', height: '18px' }} />
+                                                <span>{reason}</span>
+                                            </label>
+                                        ))}
+                                        <input type="text" placeholder="Other reason..." style={{ padding: '12px', background: 'var(--background)', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none', width: '100%' }} />
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button className="btn-outline" onClick={() => setSosDeclineModal({ open: false, sosId: null })}>Cancel</button>
+                                        <button className="btn-primary" style={{ background: 'var(--sos-red)' }} onClick={handleDeclineSosConfirm}>Decline</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* NGO SOS Request Modal */}
+                    {ngoSosModal.open && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up" style={{ maxWidth: '600px' }}>
+                                
+                                {ngoSosModal.step === 1 && (
+                                    <>
+                                        <div className="modal-header" style={{ background: 'var(--ngo-sos-orange)', color: 'white' }}>
+                                            <div>
+                                                <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white', margin: '0 0 4px 0' }}>
+                                                    📢 Food Emergency Request
+                                                </h2>
+                                                <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>Aapki zaroorat batayein</p>
+                                            </div>
+                                            <button className="btn-icon" style={{ color: 'white' }} onClick={() => setNgoSosModal({ open: false, step: 1, formData: {} })}>
+                                                <Icon name="x" size={24} />
+                                            </button>
+                                        </div>
+                                        <div className="modal-body">
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>1. Emergency Type</label>
+                                                    <select className="form-control" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)' }} value={ngoSosModal.formData.type} onChange={e => setNgoSosModal(prev => ({...prev, formData: {...prev.formData, type: e.target.value}}))}>
+                                                        <option>🌊 Natural Disaster (Flood/Earthquake)</option>
+                                                        <option>🏕️ Refugee/Displaced People</option>
+                                                        <option>👨‍👩‍👧 Orphanage Emergency</option>
+                                                        <option>🏥 Hospital Patients</option>
+                                                        <option>🧓 Old Age Home</option>
+                                                        <option>👥 Community Event</option>
+                                                        <option>🆘 General Emergency</option>
+                                                        <option>Other</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>2. People to Feed</label>
+                                                    <select className="form-control" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)' }} value={ngoSosModal.formData.people} onChange={e => setNgoSosModal(prev => ({...prev, formData: {...prev.formData, people: e.target.value}}))}>
+                                                        <option>10-50 people</option>
+                                                        <option>50-100 people</option>
+                                                        <option>100-500 people</option>
+                                                        <option>500-1000 people</option>
+                                                        <option>1000+ people</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ marginBottom: '16px' }}>
+                                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>3. Food Type Needed</label>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                    {['✅ Cooked Food', '✅ Raw Vegetables', '✅ Packaged Food', '✅ Dry Items', '✅ Beverages', '✅ Baby Food', '✅ Any Food'].map(ft => (
+                                                        <label key={ft} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--background)', padding: '6px 12px', borderRadius: '99px', border: '1px solid var(--border)', fontSize: '13px', cursor: 'pointer' }}>
+                                                            <input type="checkbox" defaultChecked={ft === '✅ Cooked Food'} style={{ accentColor: 'var(--ngo-sos-orange)' }} /> {ft}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div style={{ marginBottom: '16px' }}>
+                                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>4. When is it needed</label>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                    {['🔴 RIGHT NOW', '🟠 Within 1-2 hours', '🟡 Today evening', '🟢 Tomorrow morning'].map(t => (
+                                                        <label key={t} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', flex: '1 1 calc(50% - 8px)' }}>
+                                                            <input type="radio" name="whenNeeded" defaultChecked={t === '🔴 RIGHT NOW'} style={{ accentColor: 'var(--ngo-sos-orange)' }} /> <span style={{ fontSize: '14px' }}>{t}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div style={{ marginBottom: '16px' }}>
+                                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>5. NGO Location / Pickup Address</label>
+                                                <textarea style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', fontFamily: 'Outfit' }} rows="2" placeholder="Hamara address jahan se pickup ho sakta hai..."></textarea>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                                                <div>
+                                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>6. Contact Name</label>
+                                                    <input type="text" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)' }} placeholder="Your name..." />
+                                                </div>
+                                                <div>
+                                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '14px' }}>7. Phone Number</label>
+                                                    <input type="text" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)' }} placeholder="10-digit number..." />
+                                                </div>
+                                            </div>
+
+                                            <div className="modal-actions" style={{ marginTop: 0 }}>
+                                                <button className="btn-outline" onClick={() => setNgoSosModal({ open: false, step: 1, formData: {} })}>Cancel</button>
+                                                <button className="btn-primary" style={{ background: 'var(--ngo-sos-orange)' }} onClick={handleSendNgoSos}>📢 Send Emergency Request</button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {ngoSosModal.step === 2 && (
+                                    <div className="modal-body" style={{ textAlign: 'center', padding: '60px 24px' }}>
+                                        <div style={{ position: 'relative', width: '100px', height: '100px', margin: '0 auto 40px' }}>
+                                            <div className="radio-wave"></div>
+                                            <div className="radio-wave"></div>
+                                            <div className="radio-wave"></div>
+                                            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'var(--ngo-sos-orange)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+                                                <Icon name="megaphone" size={40} color="white" />
+                                            </div>
+                                        </div>
+                                        <h2 style={{ fontSize: '24px', color: 'var(--ngo-sos-orange-dark)', marginBottom: '8px' }}>Emergency request bheja ja raha hai...</h2>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '16px', fontWeight: 500 }}>{sendingProgressText}</p>
+                                    </div>
+                                )}
+
+                                {ngoSosModal.step === 3 && (
+                                    <div className="modal-body" style={{ padding: '32px 24px' }}>
+                                        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                                            <div style={{ width: '64px', height: '64px', background: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', animation: 'bounceCheck 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+                                                <Icon name="check" size={32} color="white" />
+                                            </div>
+                                            <h2 style={{ fontSize: '24px', margin: '0 0 8px 0', color: 'var(--primary)' }}>Emergency Request Sent! ✅</h2>
+                                            <p style={{ color: 'var(--text-main)', fontSize: '16px', fontWeight: 600 }}>4 Donors ne respond kiya!</p>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                                            <div className="donor-response-card" style={{ borderLeft: '4px solid var(--primary)' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                    <span style={{ fontWeight: 600 }}>Raj Restaurant</span>
+                                                    <span style={{ fontSize: '12px', background: 'var(--status-accepted-bg)', color: 'var(--status-accepted)', padding: '2px 8px', borderRadius: '99px' }}>Coming ✅</span>
+                                                </div>
+                                                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>150 plates dal chawal (0.8 km)</div>
+                                                <div style={{ fontSize: '13px', fontStyle: 'italic', marginBottom: '12px' }}>"Abhi bhej rahe hain!" (ETA: 10m)</div>
+                                                <button className="btn-outline" style={{ width: '100%', padding: '6px', fontSize: '13px', display: 'flex', justifyContent: 'center', gap: '4px' }}><Icon name="phone" size={14}/> Contact</button>
+                                            </div>
+
+                                            <div className="donor-response-card" style={{ borderLeft: '4px solid #eab308' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                    <span style={{ fontWeight: 600 }}>Priya Sharma</span>
+                                                    <span style={{ fontSize: '12px', background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '99px' }}>Interested 🟡</span>
+                                                </div>
+                                                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>20 kg vegetables (1.5 km)</div>
+                                                <div style={{ fontSize: '13px', fontStyle: 'italic', marginBottom: '12px' }}>"Available hoon" (ETA: 20m)</div>
+                                                <button className="btn-outline" style={{ width: '100%', padding: '6px', fontSize: '13px', display: 'flex', justifyContent: 'center', gap: '4px' }}><Icon name="phone" size={14}/> Contact</button>
+                                            </div>
+
+                                            <div className="donor-response-card" style={{ borderLeft: '4px solid #eab308' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                    <span style={{ fontWeight: 600 }}>Hotel Crown Plaza</span>
+                                                    <span style={{ fontSize: '12px', background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: '99px' }}>Interested 🟡</span>
+                                                </div>
+                                                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>200 plates mixed (2.1 km)</div>
+                                                <div style={{ fontSize: '13px', fontStyle: 'italic', marginBottom: '12px' }}>"Pickup ke liye ready"</div>
+                                                <button className="btn-outline" style={{ width: '100%', padding: '6px', fontSize: '13px', display: 'flex', justifyContent: 'center', gap: '4px' }}><Icon name="phone" size={14}/> Contact</button>
+                                            </div>
+
+                                            <div className="donor-response-card" style={{ borderLeft: '4px solid var(--text-muted)' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                    <span style={{ fontWeight: 600 }}>Rohan Gupta</span>
+                                                    <span style={{ fontSize: '12px', background: 'var(--border)', color: 'var(--text-main)', padding: '2px 8px', borderRadius: '99px' }}>Standby ⏳</span>
+                                                </div>
+                                                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>50 meal boxes (3.2 km)</div>
+                                                <div style={{ fontSize: '13px', fontStyle: 'italic', marginBottom: '12px' }}>"De sakte hain"</div>
+                                                <button className="btn-outline" style={{ width: '100%', padding: '6px', fontSize: '13px', display: 'flex', justifyContent: 'center', gap: '4px' }}><Icon name="phone" size={14}/> Contact</button>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ background: 'var(--background)', padding: '16px', borderRadius: '12px', marginBottom: '24px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontWeight: 600 }}>
+                                                <span>Total food coming: ~420 plates</span>
+                                                <span style={{ color: 'var(--primary)' }}>~350 people</span>
+                                            </div>
+                                            <div style={{ height: '8px', background: 'var(--border)', borderRadius: '99px', overflow: 'hidden' }}>
+                                                <div style={{ height: '100%', background: 'var(--primary)', width: '85%' }}></div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                            <button className="btn-outline" style={{ flex: 1, color: 'var(--sos-red)', borderColor: 'var(--sos-red)' }} onClick={() => setNgoSosModal({ open: false, step: 1, formData: {} })}>❌ Cancel Request</button>
+                                            <button className="btn-primary" style={{ flex: 2 }} onClick={handleConfirmNgoSos}>✅ Great! Close</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Track Donor Modal */}
+                    {trackModalOpen && (
+                        <div className="modal-overlay" style={{ zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div className="modal-content scale-up" style={{ width: '90%', maxWidth: '800px', padding: 0, overflow: 'hidden' }}>
+                                <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)' }}>
+                                    <div>
+                                        <h2 style={{ margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Icon name="map-pin" color="var(--primary)" /> 
+                                            Live Tracking: {trackedDonation?.donor}
+                                        </h2>
+                                        <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{trackedDonation?.food}</div>
+                                    </div>
+                                    <button className="btn-icon" onClick={closeTrackModal}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                
+                                <div style={{ padding: '16px 24px', background: 'var(--background)', display: 'flex', gap: '16px', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
+                                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        {locStatus === 'ON' && <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)', animation: 'pulse 2s infinite' }}></span>}
+                                        {locStatus === 'DETECTING' && <span className="animate-spin" style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid #f59e0b', borderTopColor: 'transparent', borderRadius: '50%' }}></span>}
+                                        <div>
+                                            <div style={{ fontWeight: 600 }}>{locStatus === 'ON' ? 'Live Location Active' : 'Connecting to Donor...'}</div>
+                                            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Updates every 5 seconds</div>
+                                        </div>
+                                    </div>
+                                    {locStatus === 'ON' && (
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button className="btn-outline" style={{ padding: '8px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => { if(mapInstanceRef.current) mapInstanceRef.current.setView(donorLoc, 15); }}>
+                                                <Icon name="crosshair" size={14} /> Center
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div style={{ position: 'relative', height: '500px', width: '100%', background: '#e2e8f0' }}>
+                                    <div ref={mapRef} style={{ width: '100%', height: '100%' }}></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(
+            <ErrorBoundary>
+                <App />
+            </ErrorBoundary>
+        );
+    </script>
+</body>
+</html>

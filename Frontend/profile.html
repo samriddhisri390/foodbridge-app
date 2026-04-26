@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodBridge | My Profile</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Translations & Global Functions -->
+    <script src="lang.js"></script>
+    <script src="utils.js"></script>
+    <script src="firebaseService.js"></script>
+    <script type="text/babel" src="shared_components.jsx"></script>
+
+    <style>
+        :root {
+            --primary: #10b981; /* Emerald 500 */
+            --primary-rgb: 16, 185, 129;
+            --primary-dark: #059669;
+            --background: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.8);
+            --surface-solid: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --glass: rgba(255, 255, 255, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            --danger: #ef4444;
+            --danger-bg: #fee2e2;
+        }
+
+        .dark-mode {
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.8);
+            --surface-solid: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --glass: rgba(15, 23, 42, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            --danger-bg: rgba(239, 68, 68, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        /* Layout Structure (Shared with Dashboard) */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 50;
+        }
+        .sidebar.collapsed { width: 80px; }
+
+        .sidebar-header {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar-header h2 { margin-left: 12px; color: var(--primary); font-size: 20px; }
+
+        .nav-items {
+            padding: 24px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            border-radius: 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+        }
+        .nav-item:hover { background: rgba(16, 185, 129, 0.1); color: var(--primary); }
+        .nav-item.active { background: var(--primary); color: white; }
+
+        .collapse-btn {
+            position: absolute;
+            right: -14px;
+            top: 21px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .navbar {
+            height: 70px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 40;
+        }
+
+        .nav-right { display: flex; align-items: center; gap: 24px; }
+        .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .user-profile img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+        
+        .main-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Profile Specific Styles */
+        .profile-container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .profile-header-card {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .avatar-upload {
+            position: relative;
+            width: 140px;
+            height: 140px;
+        }
+
+        .avatar-preview {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--primary);
+            background: var(--background);
+        }
+
+        .avatar-edit-btn {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 3px solid var(--surface-solid);
+            transition: transform 0.2s;
+        }
+        .avatar-edit-btn:hover { transform: scale(1.1); }
+
+        .profile-title-info h1 {
+            font-size: 28px;
+            margin-bottom: 4px;
+        }
+        .profile-title-info p {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        .settings-card {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .settings-card h2 {
+            font-size: 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group.full-width { grid-column: span 2; }
+
+        .form-group label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .form-group input, .form-group textarea {
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--background);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        .toggle-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .toggle-group:last-child { border-bottom: none; }
+
+        .toggle-info h4 { font-size: 16px; margin-bottom: 2px; }
+        .toggle-info p { font-size: 14px; color: var(--text-muted); }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--border);
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        .danger-zone {
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: var(--danger-bg);
+        }
+        .danger-zone h2 { color: var(--danger); }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 99px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: 'Outfit';
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #dc2626; transform: translateY(-2px); }
+
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: var(--background); }
+
+        .footer-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 16px;
+            margin-top: 16px;
+            margin-bottom: 40px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: var(--surface-solid);
+            border-left: 4px solid var(--primary);
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 2000;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toast.show { transform: translateX(0); }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center; z-index: 200;
+        }
+        .modal-content {
+            background: var(--surface-solid); border-radius: 24px;
+            width: 90%; max-width: 450px; padding: 32px;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .modal-icon {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: var(--danger-bg); color: var(--danger);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .theme-toggle {
+            position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px;
+            border-radius: 50%; background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); border: none;
+            z-index: 1000; transition: transform 0.3s;
+        }
+        .theme-toggle:hover { transform: scale(1.1) rotate(15deg); }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-scroll { padding: 20px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full-width { grid-column: span 1; }
+            .profile-header-card { flex-direction: column; text-align: center; padding: 32px 20px; }
+        }
+
+        /* Animations */
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-slide { animation: slideIn 0.5s ease-out forwards; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+        const LanguageSwitcher = () => {
+            const [lang, setLang] = useState(window.getLang());
+            const toggleLang = (newLang) => {
+                window.setLang(newLang);
+                setLang(newLang);
+                window.location.reload();
+            };
+            return (
+                <div className="lang-switcher" style={{ display: 'flex', gap: '4px', background: 'var(--surface)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'english' ? 'var(--primary)' : 'transparent', color: lang === 'english' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('english')}>🇬🇧 EN</button>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'hindi' ? 'var(--primary)' : 'transparent', color: lang === 'hindi' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('hindi')}>🇮🇳 HI</button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+            const [sidebarOpen, setSidebarOpen] = useState(false);
+            const [showToast, setShowToast] = useState(false);
+            const [showDeleteModal, setShowDeleteModal] = useState(false);
+            const [photoPreview, setPhotoPreview] = useState("https://ui-avatars.com/api/?name=Rahul+Sharma&background=10b981&color=fff&size=200");
+
+            const [profile, setProfile] = useState({
+                name: "Rahul Sharma",
+                email: "rahul.sharma@example.com",
+                phone: "+91 98765 43210",
+                address: "45, Green Park Avenue, South Extension, New Delhi - 110049"
+            });
+
+            const [notifications, setNotifications] = useState({
+                email: true,
+                sms: false,
+                donations: true
+            });
+
+            useEffect(() => {
+                if (darkMode) {
+                    document.body.classList.add('dark-mode');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                }
+            }, [darkMode]);
+
+            const handlePhotoChange = (e) => {
+                const file = e.target.files[0];
+                if (file && window.compressImage) {
+                    window.compressImage(file).then(({ dataUrl }) => {
+                        setPhotoPreview(dataUrl);
+                    }).catch(err => console.error("Compression error:", err));
+                }
+            };
+
+            const handleSave = () => {
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 3000);
+            };
+
+            const navItems = [
+                { name: window.t('nav_dashboard'), icon: "home", link: "donor_dashboard.html" },
+                { name: window.t('nav_donate'), icon: "plus-circle", link: "donation_form.html" },
+                { name: window.t('nav_donations'), icon: "list", link: "donor_dashboard.html" },
+                { name: window.t('nav_track'), icon: "truck", link: "donation_tracking.html" },
+                { name: window.t('nav_stats'), icon: "bar-chart", link: "donor_dashboard.html" },
+                { name: window.t('common_profile'), icon: "user", link: "#", active: true }
+            ];
+
+            return (
+                <div className="app-container">
+                    {/* Sidebar Overlay */}
+                    <div className={`sidebar-overlay ${sidebarOpen ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}></div>
+
+                    {/* Sidebar */}
+                    <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'open' : ''}`}>
+                        <a href="react-version.html" className="sidebar-header" style={{ textDecoration: 'none' }}>
+                            <Icon name="heart" color="var(--primary)" size={28} />
+                            <h2>FoodBridge</h2>
+                        </a>
+                        <button className="collapse-btn hide-mobile" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} />
+                        </button>
+                        <div className="nav-items">
+                            {navItems.map(item => (
+                                <a key={item.name} href={item.link} className={`nav-item ${item.active ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}>
+                                    <Icon name={item.icon} size={22} />
+                                    <span>{item.name}</span>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="content-wrapper">
+                        {/* Navbar */}
+                        <div className="navbar">
+                            <div className="navbar-left" style={{ display: 'flex', alignItems: 'center' }}>
+                                <button className="btn-icon show-mobile" onClick={() => setSidebarOpen(true)} style={{ marginRight: '10px' }}>
+                                    <Icon name="menu" size={24} />
+                                </button>
+                                <div className="breadcrumb hide-mobile">
+                                    <span style={{ color: 'var(--text-muted)' }}>Pages</span> / <span>{window.t('common_profile')}</span>
+                                </div>
+                                <h3 className="show-mobile" style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>{window.t('common_profile')}</h3>
+                            </div>
+                            <div className="nav-right">
+                                <LanguageSwitcher />
+                                <button className="btn-icon" onClick={() => window.location.href='notifications.html'} style={{ padding: '8px', position: 'relative' }}>
+                                    <Icon name="bell" size={24} color="var(--text-muted)" />
+                                    <span style={{ position: 'absolute', top: '4px', right: '4px', background: 'var(--danger)', width: '8px', height: '8px', borderRadius: '50%' }}></span>
+                                </button>
+                                <div className="user-profile">
+                                    <img src={photoPreview} alt="User" />
+                                    <span className="hide-mobile" style={{ fontWeight: 600 }}>{profile.name}</span>
+                                </div>
+                                <button className="btn-outline hide-mobile" style={{ padding: '8px 16px' }} onClick={() => window.location.href='login.html'}>
+                                    <Icon name="log-out" size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Main Content */}
+                        <div className="main-scroll">
+                            <div className="profile-container">
+                                
+                                {/* Header Card */}
+                                <div className="profile-header-card animate-slide">
+                                    <button className="btn-icon" onClick={() => window.history.back()} style={{ position: 'absolute', top: '20px', left: '20px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: '12px', padding: '8px' }}>
+                                        <Icon name="arrow-left" size={20} />
+                                    </button>
+                                    <div className="avatar-upload">
+                                        <img src={photoPreview} alt="Avatar" className="avatar-preview" />
+                                        <label htmlFor="avatar-input" className="avatar-edit-btn">
+                                            <Icon name="camera" size={18} />
+                                        </label>
+                                        <input type="file" id="avatar-input" hidden accept="image/*" onChange={handlePhotoChange} />
+                                    </div>
+                                    <div className="profile-title-info">
+                                        <h1>{profile.name}</h1>
+                                        <p>Donor since Oct 2025 • Delhi, India</p>
+                                        <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                                            <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--primary)', padding: '4px 12px', borderRadius: '99px', fontSize: '12px', fontWeight: 600 }}>Verified Donor</span>
+                                            <span style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 12px', borderRadius: '99px', fontSize: '12px', fontWeight: 600 }}>Top Contributor</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* General Information */}
+                                <div className="settings-card animate-slide" style={{ animationDelay: '0.1s' }}>
+                                    <h2><Icon name="user" color="var(--primary)" /> {window.t('profile_title') || "Personal Information"}</h2>
+                                    <div className="form-grid">
+                                        <div className="form-group">
+                                            <label>{window.t('profile_name')}</label>
+                                            <input type="text" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>{window.t('profile_email')}</label>
+                                            <input type="email" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>{window.t('profile_phone')}</label>
+                                            <input type="text" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} />
+                                        </div>
+                                        <div className="form-group full-width">
+                                            <label>{window.t('profile_address')}</label>
+                                            <textarea rows="3" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})}></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Change Password */}
+                                <div className="settings-card animate-slide" style={{ animationDelay: '0.2s' }}>
+                                    <h2><Icon name="lock" color="var(--primary)" /> Security</h2>
+                                    <div className="form-grid">
+                                        <div className="form-group">
+                                            <label>Current Password</label>
+                                            <input type="password" placeholder="••••••••" />
+                                        </div>
+                                        <div className="form-group"></div>
+                                        <div className="form-group">
+                                            <label>New Password</label>
+                                            <input type="password" placeholder="New Password" />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Confirm New Password</label>
+                                            <input type="password" placeholder="Confirm Password" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Notification Preferences */}
+                                <div className="settings-card animate-slide" style={{ animationDelay: '0.3s' }}>
+                                    <h2><Icon name="bell" color="var(--primary)" /> Notifications</h2>
+                                    <div className="toggle-list">
+                                        <div className="toggle-group">
+                                            <div className="toggle-info">
+                                                <h4>Email Notifications</h4>
+                                                <p>Receive updates about your donations via email</p>
+                                            </div>
+                                            <label className="switch">
+                                                <input type="checkbox" checked={notifications.email} onChange={() => setNotifications({...notifications, email: !notifications.email})} />
+                                                <span className="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div className="toggle-group">
+                                            <div className="toggle-info">
+                                                <h4>SMS Alerts</h4>
+                                                <p>Get real-time pickup alerts on your phone</p>
+                                            </div>
+                                            <label className="switch">
+                                                <input type="checkbox" checked={notifications.sms} onChange={() => setNotifications({...notifications, sms: !notifications.sms})} />
+                                                <span className="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div className="toggle-group">
+                                            <div className="toggle-info">
+                                                <h4>Donation Activity</h4>
+                                                <p>Notify when an NGO accepts your donation</p>
+                                            </div>
+                                            <label className="switch">
+                                                <input type="checkbox" checked={notifications.donations} onChange={() => setNotifications({...notifications, donations: !notifications.donations})} />
+                                                <span className="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Danger Zone */}
+                                <div className="settings-card danger-zone animate-slide" style={{ animationDelay: '0.4s' }}>
+                                    <h2><Icon name="alert-triangle" /> Danger Zone</h2>
+                                    <div className="toggle-group" style={{ border: 'none' }}>
+                                        <div className="toggle-info">
+                                            <h4 style={{ color: 'var(--danger)' }}>Delete Account</h4>
+                                            <p>Once deleted, all your data and impact history will be lost forever.</p>
+                                        </div>
+                                        <button className="btn btn-danger" onClick={() => setShowDeleteModal(true)}>
+                                            <Icon name="trash-2" size={18} /> {window.t('profile_delete')}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Save Button */}
+                                <div className="footer-actions">
+                                    <button className="btn btn-outline" onClick={() => window.location.href='donor_dashboard.html'}>{window.t('common_cancel')}</button>
+                                    <button className="btn btn-primary" onClick={handleSave}>
+                                        <Icon name="save" size={18} /> {window.t('profile_save')}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Toast Notification */}
+                    <div className={`toast ${showToast ? 'show' : ''}`}>
+                        <Icon name="check-circle" color="var(--primary)" size={24} />
+                        <div>
+                            <p style={{ fontWeight: 700, fontSize: '15px' }}>Profile Updated!</p>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Your changes have been saved successfully.</p>
+                        </div>
+                    </div>
+
+                    {/* Delete Confirmation Modal */}
+                    {showDeleteModal && (
+                        <div className="modal-overlay">
+                            <div className="modal-content animate-slide">
+                                <div className="modal-icon">
+                                    <Icon name="trash-2" size={32} />
+                                </div>
+                                <h2 style={{ fontSize: '22px', marginBottom: '12px' }}>Delete Account?</h2>
+                                <p style={{ color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.5' }}>
+                                    Are you sure you want to delete your FoodBridge account? This action is permanent and cannot be undone.
+                                </p>
+                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                                    <button className="btn btn-outline" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+                                    <button className="btn btn-danger" onClick={() => { setShowDeleteModal(false); window.location.href='signup.html'; }}>Yes, Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Theme Toggle */}
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)} title="Toggle Theme">
+                        <Icon name={darkMode ? "sun" : "moon"} size={24} />
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(
+            <ErrorBoundary>
+                <App />
+            </ErrorBoundary>
+        );
+    </script>
+</body>
+</html>

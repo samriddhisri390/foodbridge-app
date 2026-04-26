@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodBridge | Accepted Donations</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="lang.js"></script>
+
+    <style>
+        :root {
+            --primary: #22c55e;
+            --primary-rgb: 34, 197, 94;
+            --primary-dark: #16a34a;
+            --background: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.7);
+            --surface-solid: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: rgba(226, 232, 240, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            
+            --status-pending: #d97706;
+            --status-pending-bg: #fef3c7;
+            --status-accepted: #2563eb;
+            --status-accepted-bg: #dbeafe;
+            --status-completed: #16a34a;
+            --status-completed-bg: #dcfce7;
+            --status-cancelled: #dc2626;
+            --status-cancelled-bg: #fee2e2;
+        }
+
+        [data-theme="dark"] {
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --surface-solid: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(51, 65, 85, 0.8);
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+
+            --status-pending: #fcd34d;
+            --status-pending-bg: rgba(245, 158, 11, 0.2);
+            --status-accepted: #60a5fa;
+            --status-accepted-bg: rgba(59, 130, 246, 0.2);
+            --status-completed: #4ade80;
+            --status-completed-bg: rgba(34, 197, 94, 0.2);
+            --status-cancelled: #f87171;
+            --status-cancelled-bg: rgba(239, 68, 68, 0.2);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        * { box-sizing: border-box; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes fadeInRow { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
+        .scale-up { animation: scaleUp 0.3s ease-out forwards; }
+        .fade-in-row { animation: fadeInRow 0.5s ease-out forwards; opacity: 0; }
+        tbody tr:nth-child(1) { animation-delay: 0.05s; }
+        tbody tr:nth-child(2) { animation-delay: 0.1s; }
+        tbody tr:nth-child(3) { animation-delay: 0.15s; }
+        tbody tr:nth-child(4) { animation-delay: 0.2s; }
+        tbody tr:nth-child(5) { animation-delay: 0.25s; }
+        tbody tr:nth-child(6) { animation-delay: 0.3s; }
+        tbody tr:nth-child(7) { animation-delay: 0.35s; }
+        tbody tr:nth-child(8) { animation-delay: 0.4s; }
+
+        /* Layout Structure */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 50;
+        }
+        .sidebar.collapsed { width: 80px; }
+
+        .sidebar-header {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar-header h2 { margin-left: 12px; color: var(--primary); font-size: 20px; margin-top: 0; margin-bottom: 0; }
+
+        .nav-items {
+            padding: 24px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            border-radius: 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .nav-item:hover { background: rgba(34, 197, 94, 0.1); color: var(--primary); }
+        .nav-item.active { background: var(--primary); color: white; }
+
+        .collapse-btn {
+            position: absolute;
+            right: -14px;
+            top: 21px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .navbar {
+            height: 70px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 40;
+        }
+
+        .navbar-left { display: none; align-items: center; }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 99px;
+            padding: 8px 16px;
+            width: 300px;
+        }
+        .search-bar input {
+            border: none; background: transparent; outline: none; margin-left: 8px; color: var(--text-main); width: 100%; font-family: 'Outfit';
+        }
+
+        .nav-right { display: flex; align-items: center; gap: 24px; }
+        .notification-bell { position: relative; cursor: pointer; color: var(--text-muted); }
+        .badge-red {
+            position: absolute; top: -4px; right: -4px;
+            background: #ef4444; color: white;
+            font-size: 10px; width: 16px; height: 16px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+        }
+
+        .user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .user-profile img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+
+        .main-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        /* Page specific */
+        .page-header { margin-bottom: 24px; }
+        .page-header h1 { font-size: 32px; margin: 0 0 8px 0; }
+        .page-header p { color: var(--text-muted); margin: 0 0 16px 0; }
+
+        .stats-chips { display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+        .stat-chip { background: var(--surface); border: 1px solid var(--border); padding: 12px 20px; border-radius: 99px; display: flex; align-items: center; gap: 12px; box-shadow: var(--glass-shadow); }
+        .stat-chip-label { color: var(--text-muted); font-size: 14px; font-weight: 500; }
+        .stat-chip-value { font-weight: 700; font-size: 18px; color: var(--text-main); }
+
+        .filter-bar { display: flex; gap: 16px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; background: var(--surface); padding: 16px; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--glass-shadow); }
+        .filter-bar .search-input { flex: 1; min-width: 250px; display: flex; align-items: center; background: var(--background); border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; }
+        .filter-bar .search-input input { border: none; background: transparent; outline: none; margin-left: 8px; color: var(--text-main); width: 100%; font-family: 'Outfit'; }
+        .filter-bar select { background: var(--background); border: 1px solid var(--border); padding: 10px 16px; border-radius: 12px; color: var(--text-main); font-family: 'Outfit'; outline: none; cursor: pointer; font-weight: 500; }
+
+        .card { background: var(--surface); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 24px; padding: 24px; box-shadow: var(--glass-shadow); }
+
+        /* Table */
+        .desktop-table { display: block; overflow-x: auto; }
+        .mobile-cards { display: none; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-weight: 500; font-size: 14px; }
+        tbody tr { transition: background 0.2s, transform 0.2s; }
+        tbody tr:hover { background: rgba(34, 197, 94, 0.03); }
+
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 99px; font-size: 13px; font-weight: 600; white-space: nowrap; transition: background 0.3s, color 0.3s; }
+        .status-Scheduled { background: var(--status-accepted-bg); color: var(--status-accepted); }
+        .status-InTransit { background: var(--status-pending-bg); color: var(--status-pending); }
+        .status-Delivered { background: var(--status-completed-bg); color: var(--status-completed); }
+        .status-Cancelled { background: var(--status-cancelled-bg); color: var(--status-cancelled); }
+        .category-badge { background: var(--background); color: var(--text-main); border: 1px solid var(--border); padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 600; margin-top: 4px; display: inline-block; }
+
+        .btn-icon-action { background: var(--background); border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; color: var(--text-main); }
+        .btn-icon-action:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--primary); }
+
+        /* Pagination */
+        .pagination-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; flex-wrap: wrap; gap: 16px; }
+        .pagination-text { color: var(--text-muted); font-size: 14px; }
+        .pagination-controls { display: flex; gap: 8px; align-items: center; }
+        .page-btn { background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; font-family: 'Outfit'; font-weight: 500; cursor: pointer; color: var(--text-main); transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
+        .page-btn:hover:not(.active) { background: var(--background); }
+        .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* Empty State */
+        .empty-state { padding: 48px 24px; text-align: center; color: var(--text-muted); }
+        .empty-state h3 { font-size: 20px; color: var(--text-main); margin: 16px 0 8px 0; }
+
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 200; }
+        .modal-content { background: var(--surface-solid); border-radius: 24px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2); }
+        .modal-header { padding: 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface-solid); z-index: 10; }
+        .modal-header h2 { margin: 0; font-size: 20px; }
+        .modal-body { padding: 24px; }
+        .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: all 0.2s; }
+        .btn-icon:hover { background: rgba(34, 197, 94, 0.1); color: var(--primary); }
+
+        .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 10px 20px; border-radius: 99px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; transition: all 0.2s; }
+        .btn-outline:hover { background: var(--background); }
+        .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 99px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; transition: opacity 0.2s; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-danger { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 99px; font-weight: 600; cursor: pointer; font-family: 'Outfit'; }
+
+        /* Volunteer List */
+        .volunteer-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+        .volunteer-card { display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s; background: var(--background); }
+        .volunteer-card.selected { border-color: var(--primary); background: rgba(34,197,94,0.05); }
+        .volunteer-card.disabled { opacity: 0.6; cursor: not-allowed; }
+        .volunteer-info { display: flex; align-items: center; gap: 12px; }
+        .avatar-small { width: 36px; height: 36px; border-radius: 50%; background: var(--surface-solid); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+        .volunteer-status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot-green { background: #22c55e; }
+        .dot-red { background: #ef4444; }
+        .radio-circle { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; }
+        .volunteer-card.selected .radio-circle { border-color: var(--primary); }
+        .volunteer-card.selected .radio-circle::after { content: ''; width: 10px; height: 10px; background: var(--primary); border-radius: 50%; }
+
+        /* Timeline */
+        .status-timeline { margin-top: 24px; padding-left: 14px; border-left: 2px solid var(--border); display: flex; flex-direction: column; gap: 24px; }
+        .timeline-step { position: relative; display: flex; gap: 16px; opacity: 0.4; transition: opacity 0.3s; }
+        .timeline-step.active { opacity: 1; }
+        .step-icon { position: absolute; left: -27px; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-solid); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+        .timeline-step.active .step-icon { border-color: var(--primary); background: var(--primary); color: white; }
+        .step-content h4 { margin: 0 0 4px 0; font-size: 15px; color: var(--text-main); font-weight: 600; }
+        .step-content p { margin: 0; font-size: 13px; color: var(--text-muted); }
+
+        /* Bottom Nav & Theme Toggle */
+        .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); backdrop-filter: blur(16px); border-top: 1px solid var(--border); padding: 12px 16px; justify-content: space-around; z-index: 100; }
+        .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); font-size: 12px; cursor: pointer; transition: color 0.2s; text-decoration: none; }
+        .bottom-nav-item.active { color: var(--primary); }
+
+        .theme-toggle { position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); border: none; z-index: 1000; transition: transform 0.3s; }
+        .theme-toggle:hover { transform: scale(1.1) rotate(15deg); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .bottom-nav { display: flex; padding-bottom: env(safe-area-inset-bottom, 12px); }
+            .app-container { padding-bottom: 70px; }
+            .navbar { padding: 0 16px; }
+            .search-bar { display: none; }
+            .main-scroll { padding: 16px; }
+            .navbar-left { display: flex; }
+            .theme-toggle { bottom: 90px; }
+            .desktop-table { display: none; }
+            .mobile-cards { display: flex; flex-direction: column; gap: 16px; }
+            .donation-card-mobile { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size = 24, color, className = '' }) => {
+            const iconRef = useRef(null);
+            
+            useEffect(() => {
+                if (iconRef.current) {
+                    iconRef.current.innerHTML = '';
+                    const i = document.createElement('i');
+                    i.setAttribute('data-lucide', name);
+                    if (color) i.style.color = color;
+                    if (size) { i.style.width = size + 'px'; i.style.height = size + 'px'; }
+                    if (className) i.className = className;
+                    iconRef.current.appendChild(i);
+                    lucide.createIcons({ root: iconRef.current });
+                }
+            }, [name, color, size, className]);
+
+            return <span ref={iconRef} className={`icon-wrapper ${className}`} style={{ display: 'inline-flex', alignItems: 'center', justifyItems: 'center' }} />;
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+            
+            // Filters
+            const [searchQuery, setSearchQuery] = useState('');
+            const [statusFilter, setStatusFilter] = useState('All');
+            const [dateFilter, setDateFilter] = useState('Today');
+            const [sortBy, setSortBy] = useState('Latest');
+            
+            // Modals
+            const [assignModalOpen, setAssignModalOpen] = useState(false);
+            const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+            const [deliveredModalOpen, setDeliveredModalOpen] = useState(false);
+            const [cancelModalOpen, setCancelModalOpen] = useState(false);
+            
+            const [selectedDonation, setSelectedDonation] = useState(null);
+            const [selectedVolunteerId, setSelectedVolunteerId] = useState('');
+
+            useEffect(() => {
+                document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+            }, [darkMode]);
+
+            const navItems = [
+                { name: "Overview", icon: "home", href: "ngo_dashboard.html" },
+                { name: "Available", icon: "package", href: "ngo_dashboard.html" },
+                { name: "Accepted", icon: "check-circle", href: "ngo_accepted.html" },
+                { name: "Schedule", icon: "calendar", href: "ngo_schedule.html" },
+                { name: "Volunteers", icon: "users", href: "#" },
+                { name: "Reports", icon: "bar-chart", href: "#" },
+                { name: "Profile", icon: "building", href: "#" }
+            ];
+
+            const initialDonations = [
+                { id: 1, name: "Biryani", category: "Cooked", quantity: "5kg", donor: "Anonymous Donor", acceptedOn: "Today 10:00 AM", pickupTime: "2:00 PM", volunteer: "Amit Kumar", status: "In Transit", address: "Sector 14, Main Road", instructions: "Please call upon arrival" },
+                { id: 2, name: "Bread Packets", category: "Packaged", quantity: "10 boxes", donor: "Fresh Bakery", acceptedOn: "Today 11:30 AM", pickupTime: "3:30 PM", volunteer: "Not Assigned", status: "Scheduled", address: "MG Road, Shop #4", instructions: "Collect from back door" },
+                { id: 3, name: "Dal Rice", category: "Cooked", quantity: "3kg", donor: "City Market", acceptedOn: "Today 9:00 AM", pickupTime: "11:00 AM", volunteer: "Priya Singh", status: "Delivered", address: "Block B, Tech Park", instructions: "" },
+                { id: 4, name: "Mixed Veg", category: "Raw", quantity: "8kg", donor: "Daily Mart", acceptedOn: "Yesterday 4:00 PM", pickupTime: "Tomorrow 10:00 AM", volunteer: "Ravi Verma", status: "Scheduled", address: "Greenfield Apartments", instructions: "Guard will hand over" },
+                { id: 5, name: "Cold Drinks", category: "Beverages", quantity: "12 bottles", donor: "Party Hall", acceptedOn: "Yesterday 2:00 PM", pickupTime: "Today 5:00 PM", volunteer: "Not Assigned", status: "Scheduled", address: "Community Center", instructions: "Keep chilled if possible" },
+                { id: 6, name: "Birthday Cake", category: "Bakery", quantity: "2kg", donor: "Sweet Treats", acceptedOn: "Today 8:00 AM", pickupTime: "10:00 AM", volunteer: "Neha Gupta", status: "Delivered", address: "Cake Shop, Linking Road", instructions: "Handle with care" },
+                { id: 7, name: "Rice Packets", category: "Packaged", quantity: "20kg", donor: "Wholesale Mart", acceptedOn: "22 Apr, 9:00 AM", pickupTime: "23 Apr 9:00 AM", volunteer: "Amit Kumar", status: "Delivered", address: "Market Yard", instructions: "Heavy load" },
+                { id: 8, name: "Fresh Fruits", category: "Raw", quantity: "6kg", donor: "Fruit Market", acceptedOn: "22 Apr, 3:00 PM", pickupTime: "Today 4:00 PM", volunteer: "Not Assigned", status: "In Transit", address: "Station Road", instructions: "" },
+            ];
+
+            const [donations, setDonations] = useState(initialDonations);
+
+            const volunteers = [
+                { id: 1, name: "Amit Kumar", available: true, tasks: 2 },
+                { id: 2, name: "Priya Singh", available: false, tasks: 4 },
+                { id: 3, name: "Ravi Verma", available: true, tasks: 1 },
+                { id: 4, name: "Neha Gupta", available: true, tasks: 0 },
+                { id: 5, name: "Suresh Patel", available: true, tasks: 1 },
+            ];
+
+            const confirmAssignVolunteer = () => {
+                const vol = volunteers.find(v => v.id === selectedVolunteerId);
+                if (vol && selectedDonation) {
+                    setDonations(prev => prev.map(d => d.id === selectedDonation.id ? { ...d, volunteer: vol.name } : d));
+                }
+                setAssignModalOpen(false);
+            };
+
+            const confirmMarkDelivered = () => {
+                if (selectedDonation) {
+                    setDonations(prev => prev.map(d => d.id === selectedDonation.id ? { ...d, status: "Delivered" } : d));
+                }
+                setDeliveredModalOpen(false);
+            };
+
+            const confirmCancel = () => {
+                if (selectedDonation) {
+                    setDonations(prev => prev.map(d => d.id === selectedDonation.id ? { ...d, status: "Cancelled" } : d));
+                }
+                setCancelModalOpen(false);
+            };
+
+            const openAssign = (d) => { setSelectedDonation(d); setSelectedVolunteerId(''); setAssignModalOpen(true); };
+            const openDetails = (d) => { setSelectedDonation(d); setDetailsModalOpen(true); };
+            const openDelivered = (d) => { setSelectedDonation(d); setDeliveredModalOpen(true); };
+            const openCancel = (d) => { setSelectedDonation(d); setCancelModalOpen(true); };
+
+            const filteredDonations = donations.filter(d => {
+                if (statusFilter !== 'All' && d.status !== statusFilter) return false;
+                if (searchQuery && !d.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                // Basic date filter logic for dummy data
+                if (dateFilter === 'Today' && !d.pickupTime.includes('Today') && !d.acceptedOn.includes('Today') && !d.pickupTime.includes('AM') && !d.pickupTime.includes('PM')) {
+                    // Very loose matching for dummy purposes
+                }
+                return true;
+            });
+
+            return (
+                <div className="app-container">
+                    {/* Sidebar */}
+                    <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+                        <a href="ngo_dashboard.html" className="sidebar-header" style={{ textDecoration: 'none' }}>
+                            <Icon name="heart" color="var(--primary)" size={28} />
+                            <h2>FoodBridge</h2>
+                        </a>
+                        <button className="collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} />
+                        </button>
+                        <div className="nav-items">
+                            {navItems.map(item => (
+                                <a 
+                                    key={item.name} 
+                                    href={item.href}
+                                    style={{ textDecoration: 'none' }}
+                                    className={`nav-item ${item.name === 'Accepted' ? 'active' : ''}`}
+                                >
+                                    <Icon name={item.icon} size={22} />
+                                    <span>{item.name}</span>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="content-wrapper">
+                        {/* Navbar */}
+                        <div className="navbar">
+                            <div className="navbar-left">
+                                <Icon name="heart" color="var(--primary)" size={28} />
+                                <h2 style={{ marginLeft: '10px', color: 'var(--primary)', margin: 0, fontSize: '20px' }}>FoodBridge</h2>
+                            </div>
+                            
+                            <div className="search-bar" style={{ visibility: 'hidden' }}>
+                                {/* Top navbar search hidden or minimal here as page has its own */}
+                            </div>
+                            
+                            <div className="nav-right">
+                                <div className="notification-bell" onClick={() => window.location.href='notifications.html'}>
+                                    <Icon name="bell" size={24} />
+                                    <span className="badge-red">5</span>
+                                </div>
+                                <div className="user-profile" onClick={() => window.location.href='profile.html'}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <img src="https://ui-avatars.com/api/?name=Helping+Hands&background=22c55e&color=fff" alt="NGO" />
+                                        <div className="hide-mobile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                            <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}>
+                                                Helping Hands Foundation 
+                                                <Icon name="check-circle-2" size={14} color="var(--primary)" />
+                                            </span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Verified NGO Partner</span>
+                                        </div>
+                                        <Icon name="chevron-down" size={16} className="hide-mobile" />
+                                    </div>
+                                </div>
+                                <button className="btn-icon hide-mobile" onClick={() => window.location.href = 'login.html'}>
+                                    <Icon name="log-out" size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Scrollable Content */}
+                        <div className="main-scroll">
+                            <div className="page-header fade-in">
+                                <h1>Accepted Donations</h1>
+                                <p>Manage your accepted food donations</p>
+                                <div className="stats-chips">
+                                    <div className="stat-chip">
+                                        <span className="stat-chip-label">Total Accepted:</span>
+                                        <span className="stat-chip-value">156</span>
+                                    </div>
+                                    <div className="stat-chip">
+                                        <span className="stat-chip-label">Today:</span>
+                                        <span className="stat-chip-value">3</span>
+                                    </div>
+                                    <div className="stat-chip">
+                                        <span className="stat-chip-label">In Transit:</span>
+                                        <span className="stat-chip-value">2</span>
+                                    </div>
+                                    <div className="stat-chip">
+                                        <span className="stat-chip-label">Delivered Today:</span>
+                                        <span className="stat-chip-value">1</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="filter-bar fade-in">
+                                <div className="search-input">
+                                    <Icon name="search" size={18} color="var(--text-muted)" />
+                                    <input type="text" placeholder="Search by food name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                </div>
+                                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                                    <option value="All">All Statuses</option>
+                                    <option value="Scheduled">Scheduled</option>
+                                    <option value="In Transit">In Transit</option>
+                                    <option value="Delivered">Delivered</option>
+                                </select>
+                                <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
+                                    <option value="Today">Today</option>
+                                    <option value="This Week">This Week</option>
+                                    <option value="This Month">This Month</option>
+                                </select>
+                                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                                    <option value="Latest">Sort: Latest</option>
+                                    <option value="Oldest">Sort: Oldest</option>
+                                    <option value="Nearest Pickup">Sort: Nearest Pickup</option>
+                                </select>
+                            </div>
+
+                            <div className="card fade-in">
+                                {/* Desktop Table */}
+                                <div className="desktop-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Food Item</th>
+                                                <th>Donor</th>
+                                                <th>Quantity</th>
+                                                <th>Accepted On</th>
+                                                <th>Pickup Time</th>
+                                                <th>Volunteer</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredDonations.map((d, index) => (
+                                                <tr key={d.id} className="fade-in-row">
+                                                    <td>{index + 1}</td>
+                                                    <td>
+                                                        <div style={{ fontWeight: 600 }}>{d.name}</div>
+                                                        <span className="category-badge">{d.category}</span>
+                                                    </td>
+                                                    <td>{d.donor}</td>
+                                                    <td>{d.quantity}</td>
+                                                    <td>{d.acceptedOn}</td>
+                                                    <td style={{ fontWeight: 500 }}>{d.pickupTime}</td>
+                                                    <td>
+                                                        {d.volunteer === 'Not Assigned' ? (
+                                                            <span className="badge" style={{ background: '#fee2e2', color: '#dc2626' }}>Not Assigned</span>
+                                                        ) : d.volunteer}
+                                                    </td>
+                                                    <td><span className={`badge status-${d.status.replace(' ', '')}`}>{d.status}</span></td>
+                                                    <td>
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            {d.volunteer === 'Not Assigned' && d.status !== 'Cancelled' && (
+                                                                <button className="btn-icon-action" onClick={() => openAssign(d)} title="Assign Volunteer">
+                                                                    <Icon name="user-plus" size={16} color="var(--primary)" />
+                                                                </button>
+                                                            )}
+                                                            <button className="btn-icon-action" onClick={() => openDetails(d)} title="View Details">
+                                                                <Icon name="eye" size={16} color="var(--text-main)" />
+                                                            </button>
+                                                            {d.status === 'In Transit' && (
+                                                                <button className="btn-icon-action" onClick={() => openDelivered(d)} title="Mark Delivered">
+                                                                    <Icon name="check" size={16} color="#16a34a" />
+                                                                </button>
+                                                            )}
+                                                            {d.status === 'Scheduled' && (
+                                                                <button className="btn-icon-action" onClick={() => openCancel(d)} title="Cancel">
+                                                                    <Icon name="x" size={16} color="#ef4444" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Mobile Cards */}
+                                <div className="mobile-cards">
+                                    {filteredDonations.map((d, index) => (
+                                        <div key={d.id} className="donation-card-mobile fade-in-row" style={{ animationDelay: `${index * 0.1}s` }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <div>
+                                                    <h4 style={{ margin: '0 0 4px 0', fontSize: '16px' }}>{d.name}</h4>
+                                                    <span className="category-badge">{d.category}</span>
+                                                </div>
+                                                <span className={`badge status-${d.status.replace(' ', '')}`}>{d.status}</span>
+                                            </div>
+                                            <div style={{ margin: '16px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span style={{ color: 'var(--text-muted)' }}>Quantity</span>
+                                                    <span style={{ fontWeight: 500 }}>{d.quantity}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span style={{ color: 'var(--text-muted)' }}>Pickup Time</span>
+                                                    <span style={{ fontWeight: 500 }}>{d.pickupTime}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ color: 'var(--text-muted)' }}>Volunteer</span>
+                                                    {d.volunteer === 'Not Assigned' ? (
+                                                        <span className="badge" style={{ background: '#fee2e2', color: '#dc2626' }}>Not Assigned</span>
+                                                    ) : (
+                                                        <span style={{ fontWeight: 500 }}>{d.volunteer}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '16px', justifyContent: 'flex-end' }}>
+                                                {d.volunteer === 'Not Assigned' && d.status !== 'Cancelled' && (
+                                                    <button className="btn-icon-action" onClick={() => openAssign(d)} title="Assign Volunteer">
+                                                        <Icon name="user-plus" size={18} color="var(--primary)" />
+                                                    </button>
+                                                )}
+                                                <button className="btn-icon-action" onClick={() => openDetails(d)} title="View Details">
+                                                    <Icon name="eye" size={18} color="var(--text-main)" />
+                                                </button>
+                                                {d.status === 'In Transit' && (
+                                                    <button className="btn-icon-action" onClick={() => openDelivered(d)} title="Mark Delivered">
+                                                        <Icon name="check" size={18} color="#16a34a" />
+                                                    </button>
+                                                )}
+                                                {d.status === 'Scheduled' && (
+                                                    <button className="btn-icon-action" onClick={() => openCancel(d)} title="Cancel">
+                                                        <Icon name="x" size={18} color="#ef4444" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {filteredDonations.length === 0 && (
+                                    <div className="empty-state fade-in">
+                                        <Icon name="package-open" size={48} color="var(--border)" style={{ marginBottom: '16px' }} />
+                                        <h3>No donations found</h3>
+                                        <p style={{ margin: '0 0 16px 0' }}>Try changing your filters or search query.</p>
+                                        <button className="btn-outline" onClick={() => {setStatusFilter('All'); setSearchQuery('');}}>Back to Available</button>
+                                    </div>
+                                )}
+
+                                {filteredDonations.length > 0 && (
+                                    <div className="pagination-bar">
+                                        <span className="pagination-text">Showing {filteredDonations.length} of 156 results</span>
+                                        <div className="pagination-controls">
+                                            <button className="page-btn"><Icon name="chevron-left" size={16} /> Prev</button>
+                                            <button className="page-btn active">1</button>
+                                            <button className="page-btn">2</button>
+                                            <button className="page-btn">3</button>
+                                            <span style={{ color: 'var(--text-muted)' }}>...</span>
+                                            <button className="page-btn">20</button>
+                                            <button className="page-btn">Next <Icon name="chevron-right" size={16} /></button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bottom Nav Mobile */}
+                    <div className="bottom-nav">
+                        {navItems.slice(0, 5).map(item => (
+                            <a 
+                                key={item.name} 
+                                href={item.href}
+                                style={{ textDecoration: 'none' }}
+                                className={`bottom-nav-item ${item.name === 'Accepted' ? 'active' : ''}`}
+                            >
+                                <Icon name={item.icon} size={24} />
+                                <span>{item.name}</span>
+                            </a>
+                        ))}
+                    </div>
+
+                    {/* Theme Toggle */}
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)} title="Toggle Theme">
+                        <Icon name={darkMode ? "sun" : "moon"} size={24} />
+                    </button>
+
+                    {/* Assign Volunteer Modal */}
+                    {assignModalOpen && selectedDonation && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up">
+                                <div className="modal-header">
+                                    <div>
+                                        <h2>Assign Volunteer</h2>
+                                        <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>for {selectedDonation.name}</p>
+                                    </div>
+                                    <button className="btn-icon" onClick={() => setAssignModalOpen(false)}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                <div className="modal-body">
+                                    <div className="volunteer-list">
+                                        {volunteers.map(v => (
+                                            <div 
+                                                key={v.id} 
+                                                className={`volunteer-card ${v.available ? '' : 'disabled'} ${selectedVolunteerId === v.id ? 'selected' : ''}`}
+                                                onClick={() => v.available && setSelectedVolunteerId(v.id)}
+                                            >
+                                                <div className="volunteer-info">
+                                                    <div className="avatar-small">{v.name.charAt(0)}</div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600 }}>{v.name}</div>
+                                                        <div className="volunteer-status">
+                                                            <div className={`status-dot ${v.available ? 'dot-green' : 'dot-red'}`}></div>
+                                                            {v.available ? `Available | ${v.tasks} active tasks` : `Busy | ${v.tasks} active tasks`}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="radio-circle"></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <div style={{ marginTop: '24px', padding: '12px 16px', background: 'var(--background)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px' }}>
+                                        <Icon name="clock" size={16} color="var(--primary)" />
+                                        <span>Pickup scheduled at <strong>{selectedDonation.pickupTime}</strong></span>
+                                    </div>
+
+                                    <div className="modal-actions">
+                                        <button className="btn-outline" onClick={() => setAssignModalOpen(false)}>Cancel</button>
+                                        <button className="btn-primary" onClick={confirmAssignVolunteer} disabled={!selectedVolunteerId}>
+                                            Assign Volunteer
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* View Details Modal */}
+                    {detailsModalOpen && selectedDonation && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up">
+                                <div className="modal-header">
+                                    <h2>Donation Details</h2>
+                                    <button className="btn-icon" onClick={() => setDetailsModalOpen(false)}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                <div className="modal-body">
+                                    <div style={{ background: 'var(--background)', padding: '20px', borderRadius: '16px', marginBottom: '24px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                            <div>
+                                                <h3 style={{ margin: '0 0 4px 0' }}>{selectedDonation.name}</h3>
+                                                <span className="category-badge">{selectedDonation.category}</span>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{selectedDonation.quantity}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '14px' }}>
+                                            <div>
+                                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>Donor</div>
+                                                <div style={{ fontWeight: 500 }}>{selectedDonation.donor}</div>
+                                            </div>
+                                            <div>
+                                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>Accepted On</div>
+                                                <div style={{ fontWeight: 500 }}>{selectedDonation.acceptedOn}</div>
+                                            </div>
+                                            <div style={{ gridColumn: '1 / -1' }}>
+                                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>Pickup Address</div>
+                                                <div style={{ fontWeight: 500 }}>{selectedDonation.address}</div>
+                                            </div>
+                                            <div style={{ gridColumn: '1 / -1' }}>
+                                                <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>Special Instructions</div>
+                                                <div style={{ fontStyle: selectedDonation.instructions ? 'normal' : 'italic', color: selectedDonation.instructions ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                                                    {selectedDonation.instructions || "None provided"}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <h3 style={{ fontSize: '16px', marginBottom: '16px' }}>Status Timeline</h3>
+                                    <div className="status-timeline">
+                                        <div className="timeline-step active">
+                                            <div className="step-icon"><Icon name="check" size={14} /></div>
+                                            <div className="step-content">
+                                                <h4>Donation Posted</h4>
+                                                <p>10:00 AM</p>
+                                            </div>
+                                        </div>
+                                        <div className="timeline-step active">
+                                            <div className="step-icon"><Icon name="check" size={14} /></div>
+                                            <div className="step-content">
+                                                <h4>Accepted by NGO</h4>
+                                                <p>10:15 AM</p>
+                                            </div>
+                                        </div>
+                                        <div className={`timeline-step ${selectedDonation.volunteer !== 'Not Assigned' ? 'active' : ''}`}>
+                                            <div className="step-icon">
+                                                {selectedDonation.volunteer !== 'Not Assigned' ? <Icon name="check" size={14} /> : <Icon name="hourglass" size={14} />}
+                                            </div>
+                                            <div className="step-content">
+                                                <h4>Volunteer Assigned</h4>
+                                                <p>{selectedDonation.volunteer !== 'Not Assigned' ? `Assigned to ${selectedDonation.volunteer}` : 'Pending'}</p>
+                                            </div>
+                                        </div>
+                                        <div className={`timeline-step ${['In Transit', 'Delivered'].includes(selectedDonation.status) ? 'active' : ''}`}>
+                                            <div className="step-icon">
+                                                {['In Transit', 'Delivered'].includes(selectedDonation.status) ? <Icon name="check" size={14} /> : <Icon name="hourglass" size={14} />}
+                                            </div>
+                                            <div className="step-content">
+                                                <h4>Picked Up</h4>
+                                                <p>{['In Transit', 'Delivered'].includes(selectedDonation.status) ? 'Completed' : 'Pending'}</p>
+                                            </div>
+                                        </div>
+                                        <div className={`timeline-step ${selectedDonation.status === 'Delivered' ? 'active' : ''}`}>
+                                            <div className="step-icon">
+                                                {selectedDonation.status === 'Delivered' ? <Icon name="check" size={14} /> : <Icon name="hourglass" size={14} />}
+                                            </div>
+                                            <div className="step-content">
+                                                <h4>Delivered</h4>
+                                                <p>{selectedDonation.status === 'Delivered' ? 'Successfully Delivered' : 'Pending'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mark Delivered Modal */}
+                    {deliveredModalOpen && selectedDonation && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up" style={{ maxWidth: '400px' }}>
+                                <div className="modal-header" style={{ borderBottom: 'none', paddingBottom: '0' }}>
+                                    <h2>Confirm Delivery</h2>
+                                    <button className="btn-icon" onClick={() => setDeliveredModalOpen(false)}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                <div className="modal-body" style={{ textAlign: 'center', paddingTop: '12px' }}>
+                                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                                        <Icon name="package-check" size={32} />
+                                    </div>
+                                    <p style={{ fontSize: '16px', margin: '0 0 8px 0' }}>Mark this donation as delivered?</p>
+                                    <p style={{ fontWeight: 600, fontSize: '18px', margin: '0 0 24px 0' }}>{selectedDonation.name}</p>
+                                    
+                                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                                        <button className="btn-outline" onClick={() => setDeliveredModalOpen(false)}>Cancel</button>
+                                        <button className="btn-primary" onClick={confirmMarkDelivered}>Yes, Delivered ✓</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Cancel Confirmation Modal */}
+                    {cancelModalOpen && selectedDonation && (
+                        <div className="modal-overlay">
+                            <div className="modal-content scale-up" style={{ maxWidth: '400px' }}>
+                                <div className="modal-header" style={{ borderBottom: 'none', paddingBottom: '0' }}>
+                                    <h2>Cancel Donation</h2>
+                                    <button className="btn-icon" onClick={() => setCancelModalOpen(false)}>
+                                        <Icon name="x" size={24} />
+                                    </button>
+                                </div>
+                                <div className="modal-body" style={{ textAlign: 'center', paddingTop: '12px' }}>
+                                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                                        <Icon name="alert-triangle" size={32} />
+                                    </div>
+                                    <p style={{ fontSize: '16px', margin: '0 0 8px 0' }}>Cancel this accepted donation?</p>
+                                    <p style={{ fontWeight: 600, fontSize: '18px', margin: '0 0 12px 0' }}>{selectedDonation.name}</p>
+                                    <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '0 0 24px 0' }}>This will notify the donor that the pickup has been cancelled.</p>
+                                    
+                                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                                        <button className="btn-outline" onClick={() => setCancelModalOpen(false)}>Cancel</button>
+                                        <button className="btn-danger" onClick={confirmCancel}>Yes, Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

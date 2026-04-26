@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodBridge | Notifications</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Translations & Global Functions -->
+    <script src="lang.js"></script>
+
+    <!-- External Style -->
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-rgb: 16, 185, 129;
+            --background: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.8);
+            --surface-solid: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .dark-mode {
+            --background: #0f172a;
+            --surface: rgba(30, 41, 59, 0.8);
+            --surface-solid: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Shared */
+        .sidebar {
+            width: 260px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 50;
+        }
+        .sidebar.collapsed { width: 80px; }
+
+        .sidebar-header {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+        }
+        .sidebar-header h2 { margin-left: 12px; color: var(--primary); font-size: 20px; }
+
+        .nav-items {
+            padding: 24px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            border-radius: 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+        }
+        .nav-item:hover { background: rgba(16, 185, 129, 0.1); color: var(--primary); }
+        .nav-item.active { background: var(--primary); color: white; }
+
+        .collapse-btn {
+            position: absolute;
+            right: -14px;
+            top: 21px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Content Area */
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .navbar {
+            height: 70px;
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 40;
+        }
+
+        .main-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .notifications-container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .header-actions h1 { font-size: 28px; }
+
+        /* Filter Tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            background: var(--surface);
+            padding: 6px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            width: fit-content;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            border: none;
+            background: transparent;
+            font-family: 'Outfit';
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .unread-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        /* Notification Card */
+        .notification-card {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            cursor: pointer;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .notification-card:hover {
+            transform: translateX(8px);
+            border-color: var(--primary);
+            box-shadow: var(--glass-shadow);
+        }
+
+        .notification-card.unread {
+            background: rgba(var(--primary-rgb), 0.05);
+            border-left: 4px solid var(--primary);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .card-content { flex: 1; }
+        .card-content h3 { font-size: 16px; margin-bottom: 4px; }
+        .card-content p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+        
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        .time-ago { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .notification-card:hover .card-actions { opacity: 1; }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--surface-solid);
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            color: #ef4444;
+            border-color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .btn-mark-read {
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+        .btn-mark-read:hover {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            animation: fadeIn 0.8s ease;
+        }
+
+        .empty-icon {
+            width: 120px;
+            height: 120px;
+            background: rgba(var(--primary-rgb), 0.1);
+            color: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+        .empty-state h2 { margin-bottom: 8px; }
+        .empty-state p { color: var(--text-muted); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .theme-toggle {
+            position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px;
+            border-radius: 50%; background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4); border: none;
+            z-index: 1000; transition: transform 0.3s;
+        }
+        .theme-toggle:hover { transform: scale(1.1) rotate(15deg); }
+
+        .btn-primary-ghost {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 10px 20px;
+            border-radius: 99px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Outfit';
+        }
+
+        .btn-primary-ghost:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-scroll { padding: 20px; }
+            .filter-tabs { width: 100%; overflow-x: auto; }
+            .header-actions { flex-direction: column; align-items: flex-start; gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size = 24, color, className = '' }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current) {
+                    iconRef.current.innerHTML = '';
+                    const i = document.createElement('i');
+                    i.setAttribute('data-lucide', name);
+                    if (color) i.style.color = color;
+                    if (size) { i.style.width = size + 'px'; i.style.height = size + 'px'; }
+                    if (className) i.className = className;
+                    iconRef.current.appendChild(i);
+                    lucide.createIcons({ root: iconRef.current });
+                }
+            }, [name, color, size, className]);
+            return <span ref={iconRef} className={`icon-wrapper ${className}`} style={{ display: 'inline-flex', alignItems: 'center', justifyItems: 'center' }} />;
+        };
+
+        const LanguageSwitcher = () => {
+            const [lang, setLang] = useState(window.getLang());
+            const toggleLang = (newLang) => {
+                window.setLang(newLang);
+                setLang(newLang);
+                window.location.reload();
+            };
+            return (
+                <div className="lang-switcher" style={{ display: 'flex', gap: '4px', background: 'var(--surface)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'english' ? 'var(--primary)' : 'transparent', color: lang === 'english' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('english')}>🇬🇧 EN</button>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'hindi' ? 'var(--primary)' : 'transparent', color: lang === 'hindi' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('hindi')}>🇮🇳 HI</button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+            const [activeFilter, setActiveFilter] = useState('All');
+            
+            const [notifications, setNotifications] = useState([
+                { 
+                    id: 1, 
+                    type: 'Donations', 
+                    title: 'Donation Accepted!', 
+                    desc: 'Your donation of "Biryani (5kg)" has been accepted by Helping Hands NGO.', 
+                    time: '2 hours ago', 
+                    unread: true, 
+                    icon: 'package-check', 
+                    color: '#10b981' 
+                },
+                { 
+                    id: 2, 
+                    type: 'Donations', 
+                    title: 'Pickup Scheduled', 
+                    desc: 'A pickup has been scheduled for tomorrow at 10:00 AM for your donation.', 
+                    time: '5 hours ago', 
+                    unread: true, 
+                    icon: 'truck', 
+                    color: '#3b82f6' 
+                },
+                { 
+                    id: 3, 
+                    type: 'System', 
+                    title: 'New NGO Nearby', 
+                    desc: '"Smile Foundation" just joined FoodBridge in your area. You can now donate to them!', 
+                    time: '1 day ago', 
+                    unread: false, 
+                    icon: 'home', 
+                    color: '#f59e0b' 
+                },
+                { 
+                    id: 4, 
+                    type: 'Alerts', 
+                    title: 'Donation Expiring Soon', 
+                    desc: 'Your donation of "Fruit Packets" will expire in 4 hours. Please check status.', 
+                    time: '1 day ago', 
+                    unread: true, 
+                    icon: 'alert-circle', 
+                    color: '#ef4444' 
+                },
+                { 
+                    id: 5, 
+                    type: 'System', 
+                    title: 'Account Verified', 
+                    desc: 'Congratulations! Your donor account has been successfully verified.', 
+                    time: '2 days ago', 
+                    unread: false, 
+                    icon: 'shield-check', 
+                    color: '#10b981' 
+                }
+            ]);
+
+            useEffect(() => {
+                if (darkMode) {
+                    document.body.classList.add('dark-mode');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                }
+            }, [darkMode]);
+
+            const deleteNotification = (id) => {
+                setNotifications(notifications.filter(n => n.id !== id));
+            };
+
+            const toggleRead = (id) => {
+                setNotifications(notifications.map(n => n.id === id ? { ...n, unread: false } : n));
+            };
+
+            const markAllRead = () => {
+                setNotifications(notifications.map(n => ({ ...n, unread: false })));
+            };
+
+            const filteredNotifications = notifications.filter(n => 
+                activeFilter === 'All' ? true : n.type === activeFilter
+            );
+
+            const unreadCount = (type) => {
+                return notifications.filter(n => n.unread && (type === 'All' ? true : n.type === type)).length;
+            };
+
+            const navItems = [
+                { name: "Dashboard", icon: "home", link: "donor_dashboard.html" },
+                { name: "Donate Food", icon: "plus-circle", link: "donation_form.html" },
+                { name: "My Donations", icon: "list", link: "donor_dashboard.html" },
+                { name: "Track Orders", icon: "truck", link: "donation_tracking.html" },
+                { name: "Impact Stats", icon: "bar-chart", link: "donor_dashboard.html" },
+                { name: "Notifications", icon: "bell", active: true },
+                { name: "Profile", icon: "user", link: "profile.html" }
+            ];
+
+            return (
+                <div className="app-container">
+                    {/* Sidebar */}
+                    <div className={`sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+                        <a href="donor_dashboard.html" className="sidebar-header">
+                            <Icon name="heart" color="var(--primary)" size={28} />
+                            <h2>FoodBridge</h2>
+                        </a>
+                        <button className="collapse-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            <Icon name={sidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} />
+                        </button>
+                        <div className="nav-items">
+                            {navItems.map(item => (
+                                <a 
+                                    key={item.name} 
+                                    href={item.link || '#'} 
+                                    className={`nav-item ${item.active ? 'active' : ''}`}
+                                    onClick={(e) => {
+                                        if (item.active) e.preventDefault();
+                                    }}
+                                >
+                                    <Icon name={item.icon} size={22} />
+                                    {!sidebarCollapsed && <span>{item.name}</span>}
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="content-wrapper">
+                        {/* Navbar */}
+                        <div className="navbar">
+                            <div className="breadcrumb">
+                                <span style={{ color: 'var(--text-muted)' }}>Pages</span> / <span>Notifications</span>
+                            </div>
+                             <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                                <LanguageSwitcher />
+                                <div style={{ position: 'relative' }}>
+                                    <Icon name="bell" size={24} />
+                                    {unreadCount('All') > 0 && <span className="unread-badge" style={{ position: 'absolute', top: '-4px', right: '-4px' }}>{unreadCount('All')}</span>}
+                                </div>
+                                <div className="user-profile" onClick={() => window.location.href='profile.html'} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                                    <img src="https://ui-avatars.com/api/?name=Rahul+Sharma&background=10b981&color=fff" alt="User" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
+                                    <span className="hide-mobile" style={{ fontWeight: 600 }}>Rahul Sharma</span>
+                                </div>
+                                <button className="btn-icon" onClick={() => window.location.href='login.html'} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                                    <Icon name="log-out" size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Main Content */}
+                        <div className="main-scroll">
+                            <div className="notifications-container">
+                                <div className="header-actions">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <button className="btn-icon" onClick={() => window.history.back()} style={{ border: '1px solid var(--border)', borderRadius: '12px' }}>
+                                            <Icon name="arrow-left" size={20} />
+                                        </button>
+                                        <h1>Notifications</h1>
+                                    </div>
+                                    {notifications.length > 0 && (
+                                        <button className="btn-primary-ghost" onClick={markAllRead}>
+                                            Mark all as read
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="filter-tabs">
+                                    {['All', 'Donations', 'System', 'Alerts'].map(type => (
+                                        <button 
+                                            key={type} 
+                                            className={`tab ${activeFilter === type ? 'active' : ''}`}
+                                            onClick={() => setActiveFilter(type)}
+                                        >
+                                            {type}
+                                            {unreadCount(type) > 0 && <span className="unread-badge">{unreadCount(type)}</span>}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {filteredNotifications.length > 0 ? (
+                                    <div className="notifications-list">
+                                        {filteredNotifications.map(n => (
+                                            <div 
+                                                key={n.id} 
+                                                className={`notification-card ${n.unread ? 'unread' : ''}`}
+                                                onClick={() => {
+                                                    toggleRead(n.id);
+                                                    if (n.type === 'Donations') window.location.href = 'donation_tracking.html';
+                                                }}
+                                            >
+                                                <div className="card-icon" style={{ backgroundColor: `${n.color}15`, color: n.color }}>
+                                                    <Icon name={n.icon} size={24} />
+                                                </div>
+                                                <div className="card-content">
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                        <h3>{n.title}</h3>
+                                                        <div className="card-actions">
+                                                            {n.unread && (
+                                                                <button className="btn-icon btn-mark-read" title="Mark as read" onClick={(e) => { e.stopPropagation(); toggleRead(n.id); }}>
+                                                                    <Icon name="check" size={16} />
+                                                                </button>
+                                                            )}
+                                                            <button className="btn-icon" title="Delete" onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}>
+                                                                <Icon name="trash-2" size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <p>{n.desc}</p>
+                                                    <div className="card-meta">
+                                                        <span className="time-ago">
+                                                            <Icon name="clock" size={12} /> {n.time}
+                                                        </span>
+                                                        <span style={{ fontSize: '12px', fontWeight: 600, color: n.color, textTransform: 'uppercase' }}>{n.type}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="empty-state">
+                                        <div className="empty-icon">
+                                            <Icon name="bell-off" size={48} />
+                                        </div>
+                                        <h2>No notifications yet</h2>
+                                        <p>We'll notify you when something important happens.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Theme Toggle */}
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)} title="Toggle Theme">
+                        <Icon name={darkMode ? "sun" : "moon"} size={24} />
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

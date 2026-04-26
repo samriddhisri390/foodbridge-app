@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donate Food | FoodBridge</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Translations & Global Functions -->
+    <script src="lang.js"></script>
+    <script src="utils.js"></script>
+    <script src="firebaseService.js"></script>
+    <script type="text/babel" src="shared_components.jsx"></script>
+
+    <style>
+        :root {
+            /* Light Theme */
+            --primary: #22c55e;
+            --primary-hover: #16a34a;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --surface-hover: #f1f5f9;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --error: #ef4444;
+            --glass-bg: rgba(255, 255, 255, 0.7);
+
+            /* Shapes & Shadows */
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+            --shadow-glow: 0 0 20px rgba(34, 197, 94, 0.3);
+
+            /* Transitions */
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .dark-mode {
+            --background: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-main);
+            transition: var(--transition);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* General Utilities */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            box-shadow: var(--shadow-glow);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+        }
+
+        /* Layout */
+        .split-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Left Panel */
+        .info-panel {
+            width: 40%;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.02) 100%);
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            border-right: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary);
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            margin-bottom: 3rem;
+        }
+
+        .info-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            flex: 1;
+            justify-content: center;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .info-content h1 {
+            font-size: 2.5rem;
+            line-height: 1.2;
+        }
+
+        .benefit-item {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .benefit-icon {
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .benefit-text h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .benefit-text p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .quote-box {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            border-left: 4px solid var(--primary);
+            margin-top: 2rem;
+            font-style: italic;
+            color: var(--text-muted);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Right Panel (Form) */
+        .form-panel {
+            width: 60%;
+            margin-left: 40%;
+            padding: 3rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-container {
+            max-width: 700px;
+            margin: 0 auto;
+            width: 100%;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 3rem;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 999px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        /* Form Elements */
+        .form-section-title {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-section-subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+            font-size: 0.95rem;
+        }
+
+        .form-label .required {
+            color: var(--error);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border-radius: var(--radius-md);
+            border: 2px solid var(--border);
+            background: var(--surface);
+            color: var(--text-main);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+        }
+
+        .error-message {
+            color: var(--error);
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-weight: 500;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        /* Category Grid */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .category-card {
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--surface);
+        }
+
+        .category-card:hover {
+            border-color: var(--primary);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .category-card.selected {
+            border-color: var(--primary);
+            background: rgba(34, 197, 94, 0.1);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .category-card i {
+            display: inline-block;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+
+        .category-card.selected i {
+            color: var(--primary);
+        }
+
+        .category-card span {
+            display: block;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Checkboxes / Radio */
+        .multi-select-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            background: var(--surface);
+            transition: var(--transition);
+        }
+
+        .checkbox-item:hover {
+            border-color: var(--primary);
+        }
+
+        .checkbox-item.selected {
+            border-color: var(--primary);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .checkbox-item input {
+            accent-color: var(--primary);
+            width: 1.2rem;
+            height: 1.2rem;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+
+        .switch-container {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 999px;
+            transition: var(--transition);
+        }
+
+        .switch-container.active {
+            background: var(--primary);
+        }
+
+        .switch-knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: var(--transition);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .switch-container.active .switch-knob {
+            transform: translateX(20px);
+        }
+
+        /* File Upload */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-lg);
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--surface);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .upload-preview {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: var(--radius-lg);
+        }
+
+        .upload-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-content.has-image {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            color: white;
+            display: inline-block;
+            margin-top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .summary-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .summary-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .summary-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .summary-header.food {
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .summary-header.safety {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .summary-header.pickup {
+            background: rgba(249, 115, 22, 0.1);
+        }
+
+        .summary-body {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .summary-full {
+            grid-column: 1 / -1;
+        }
+
+        .edit-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .edit-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: white;
+        }
+
+        .summary-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .summary-val {
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 1rem;
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        .summary-highlight {
+            border: 2px dashed var(--primary);
+            background: rgba(34, 197, 94, 0.05);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Form Actions */
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn-submit {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            width: 100%;
+            font-size: 1.1rem;
+            animation: pulse 2s infinite;
+        }
+
+        .btn-submit:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+        /* Success State */
+        .success-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 60vh;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .success-icon-wrap {
+            width: 100px;
+            height: 100px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-glow);
+            animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .success-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            width: 100%;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .donation-id {
+            font-family: monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 2px;
+            margin-top: 0.5rem;
+            display: block;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            border: none;
+            z-index: 1000;
+            transition: var(--transition);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1) rotate(15deg);
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 1024px) {
+            .category-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .info-panel {
+                width: 35%;
+                padding: 2rem;
+            }
+
+            .form-panel {
+                width: 65%;
+                margin-left: 35%;
+                padding: 2rem;
+            }
+
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .split-layout {
+                flex-direction: column;
+            }
+
+            .info-panel {
+                display: none;
+            }
+
+            .form-panel {
+                width: 100%;
+                margin-left: 0;
+                padding: 1.5rem;
+            }
+
+            .theme-toggle {
+                bottom: 1.5rem;
+                right: 1.5rem;
+                width: 48px;
+                height: 48px;
+            }
+
+            .form-container {
+                max-width: 100%;
+            }
+
+            .form-actions {
+                flex-direction: column-reverse;
+                gap: 1rem;
+            }
+
+            .form-actions button {
+                width: 100%;
+            }
+
+            .form-section-title {
+                font-size: 1.5rem;
+            }
+
+            .logo-mobile {
+                display: flex !important;
+                align-items: center;
+                gap: 0.5rem;
+                color: var(--primary);
+                font-size: 1.2rem;
+                font-weight: 700;
+                text-decoration: none;
+                margin-bottom: 2rem;
+            }
+        }
+
+        .logo-mobile {
+            display: none;
+        }
+
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-5px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(5px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .slide-right {
+            animation: slideInRight 0.4s ease-out;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes drawCheck {
+            from {
+                stroke-dashoffset: 100;
+                opacity: 0;
+            }
+
+            to {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+
+        .draw-check {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: drawCheck 1s ease forwards 0.5s;
+            opacity: 0;
+        }
+
+        @keyframes badgeBounce {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .badge-bounce {
+            animation: badgeBounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards 1s;
+            opacity: 0;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            top: -20px;
+            z-index: 1000;
+            animation: fall linear forwards;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(110vh) rotate(720deg);
+            }
+        }
+
+        .stagger-1 {
+            animation: fadeIn 0.4s ease forwards 0.1s;
+            opacity: 0;
+        }
+
+        .stagger-2 {
+            animation: fadeIn 0.4s ease forwards 0.2s;
+            opacity: 0;
+        }
+
+        .stagger-3 {
+            animation: fadeIn 0.4s ease forwards 0.3s;
+            opacity: 0;
+        }
+
+        .stagger-4 {
+            animation: fadeIn 0.4s ease forwards 0.4s;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.95;
+                transform: scale(0.98);
+            }
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+        const LanguageSwitcher = () => {
+            const [lang, setLang] = useState(window.getLang());
+            const toggleLang = (newLang) => {
+                window.setLang(newLang);
+                setLang(newLang);
+                window.location.reload();
+            };
+            return (
+                <div className="lang-switcher" style={{ display: 'flex', gap: '4px', background: 'var(--surface)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'english' ? 'var(--primary)' : 'transparent', color: lang === 'english' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('english')}>🇬🇧 EN</button>
+                    <button style={{ padding: '4px 12px', border: 'none', borderRadius: '16px', background: lang === 'hindi' ? 'var(--primary)' : 'transparent', color: lang === 'hindi' ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }} onClick={() => toggleLang('hindi')}>🇮🇳 HI</button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [darkMode, setDarkMode] = useState(false);
+            const [step, setStep] = useState(1);
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            const [isSuccess, setIsSuccess] = useState(false);
+            const [errors, setErrors] = useState({});
+
+            const fileInputRef = useRef(null);
+
+            // Form State
+            const [formData, setFormData] = useState({
+                foodName: '',
+                category: '',
+                quantity: '',
+                quantityUnit: 'portions',
+                servesPeople: '',
+                description: '',
+                prepDate: '',
+                prepTime: '',
+                expiryDate: '',
+                expiryTime: '',
+                storageType: 'Room Temperature',
+                allergens: [],
+                isVegetarian: false,
+                isHalal: false,
+                photo: null,
+                photoPreview: null,
+                address: '',
+                city: '',
+                pincode: '',
+                pickupStart: '',
+                pickupEnd: '',
+                pickupDate: '',
+                specialInstructions: '',
+                contactNumber: '',
+                needsPackagingHelp: false,
+                notifyNGO: true,
+                agreedTerms: false,
+                shareLocation: false
+            });
+
+            // Location Tracking State
+            const [locationStatus, setLocationStatus] = useState('OFF'); // OFF, DETECTING, ON, DENIED
+            const [locationDetails, setLocationDetails] = useState('');
+            const [toastMessage, setToastMessage] = useState(null);
+            const watchIdRef = useRef(null);
+
+            // Safe Icon Component to prevent Lucide/React DOM conflicts
+            const Icon = ({ name, size = 16, className = "", style = {} }) => {
+                return (
+                    <span
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', ...style }}
+                        className={className}
+                        dangerouslySetInnerHTML={{ __html: `<i data-lucide="${name}" style="width:${size}px;height:${size}px"></i>` }}
+                    />
+                );
+            };
+
+            // Consolidated Icon Management
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    try {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    } catch (e) {
+                        console.error("Lucide error:", e);
+                    }
+                }, 100);
+                return () => clearTimeout(timer);
+            }, [step, isSuccess, formData.category, formData.allergens, formData.storageType, formData.photoPreview, formData.shareLocation, locationStatus]);
+
+            // Toast UI helper
+            const showToast = (message) => {
+                setToastMessage(message);
+                setTimeout(() => setToastMessage(null), 5000);
+            };
+
+            // Location Tracking API Call
+            const updateLocation = async (donationId, lat, lng, status) => {
+                try {
+                    await fetch(`http://localhost:5000/api/donations/track/${donationId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lat, lng, status })
+                    });
+                } catch (err) {
+                    console.error("Location update failed (silent)", err);
+                }
+            };
+
+            const stopTracking = () => {
+                if (watchIdRef.current) {
+                    navigator.geolocation.clearWatch(watchIdRef.current);
+                    watchIdRef.current = null;
+                }
+                setLocationStatus('OFF');
+                setLocationDetails('');
+            };
+
+            const startTracking = (donationId) => {
+                if (!navigator.geolocation) {
+                    showToast('📍 Aapka browser location support nahi karta.');
+                    return;
+                }
+
+                setLocationStatus('DETECTING');
+                
+                watchIdRef.current = navigator.geolocation.watchPosition(
+                    (position) => {
+                        setLocationStatus('ON');
+                        setLocationDetails(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)} (Detected ✅)`);
+                        updateLocation(donationId, position.coords.latitude, position.coords.longitude, 'active');
+                    },
+                    (error) => {
+                        console.error(error);
+                        if (error.code === 1) {
+                            setLocationStatus('DENIED');
+                            showToast('📍 Location access nahi mila. Browser settings mein allow karein.');
+                            setFormData(prev => ({ ...prev, shareLocation: false }));
+                            stopTracking();
+                        } else if (error.code === 2) {
+                            setLocationStatus('DETECTING');
+                            showToast('📍 GPS signal weak hai. Detecting...');
+                        } else {
+                            setLocationStatus('DETECTING');
+                            showToast('📍 Location timeout. Retrying...');
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+                );
+
+                // Auto stop tracking after 4 hours (14400000 ms)
+                setTimeout(() => {
+                    stopTracking();
+                    updateLocation(donationId, 0, 0, 'stopped');
+                    showToast('🔒 Location sharing auto-stopped after 4 hours.');
+                }, 14400000);
+            };
+
+            useEffect(() => {
+                return () => stopTracking(); // Cleanup on unmount
+            }, []);
+
+            const handleLocationToggle = () => {
+                const newVal = !formData.shareLocation;
+                setFormData(prev => ({ ...prev, shareLocation: newVal }));
+                
+                if (newVal) {
+                    // Try to get permission immediately for preview
+                    if (navigator.geolocation) {
+                        setLocationStatus('DETECTING');
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                                setLocationStatus('ON');
+                                setLocationDetails(`Delhi, India (Detected ✅)`); // Simplified for UI
+                            },
+                            (err) => {
+                                setLocationStatus('DENIED');
+                                setFormData(prev => ({ ...prev, shareLocation: false }));
+                                showToast('📍 Please browser settings mein location allow karein');
+                            }
+                        );
+                    } else {
+                        showToast('📍 Browser not supported');
+                        setFormData(prev => ({ ...prev, shareLocation: false }));
+                    }
+                } else {
+                    stopTracking();
+                }
+            };
+
+            const getCurrentLocation = () => {
+              const btn = document.getElementById("locationBtn");
+              const addressField = document.getElementById("pickup_address");
+              
+              btn.textContent = "Detecting...";
+              btn.disabled = true;
+
+              navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                  const lat = position.coords.latitude;
+                  const lon = position.coords.longitude;
+
+                  try {
+                    const res = await fetch(
+                      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+                      { headers: { "Accept-Language": "en" } }
+                    );
+                    const data = await res.json();
+                    addressField.value = data.display_name;
+                    updateForm('address', data.display_name);
+                  } catch (e) {
+                    alert("Could not fetch address. Please enter manually.");
+                  }
+
+                  btn.textContent = "Use Current Location";
+                  btn.disabled = false;
+                },
+                (error) => {
+                  alert("Location access denied. Please enter address manually.");
+                  btn.textContent = "Use Current Location";
+                  btn.disabled = false;
+                },
+                {
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 0
+                }
+              );
+            };
+
+            const updateForm = (field, value) => {
+                setFormData(prev => ({ ...prev, [field]: value }));
+                setErrors(prev => {
+                    if (prev[field]) {
+                        const next = { ...prev };
+                        delete next[field];
+                        return next;
+                    }
+                    return prev;
+                });
+            };
+
+            const toggleArrayItem = (field, value) => {
+                setFormData(prev => {
+                    const array = [...prev[field]];
+                    if (value === 'None') {
+                        return { ...prev, [field]: ['None'] };
+                    }
+                    if (array.includes('None')) {
+                        const idx = array.indexOf('None');
+                        array.splice(idx, 1);
+                    }
+                    if (array.includes(value)) {
+                        return { ...prev, [field]: array.filter(item => item !== value) };
+                    } else {
+                        return { ...prev, [field]: [...array, value] };
+                    }
+                });
+                if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+            };
+
+            const handlePhotoUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+                        setErrors(prev => ({ ...prev, photo: 'Only JPG and PNG images are allowed.' }));
+                        return;
+                    }
+
+                    if (window.compressImage) {
+                        window.compressImage(file).then(({ blob, dataUrl }) => {
+                            setFormData(prev => ({
+                                ...prev,
+                                photo: blob,
+                                photoPreview: dataUrl
+                            }));
+                        }).catch(err => {
+                            console.error("Compression error:", err);
+                            // Fallback
+                            const previewUrl = URL.createObjectURL(file);
+                            setFormData(prev => ({ ...prev, photo: file, photoPreview: previewUrl }));
+                        });
+                    }
+
+                    if (errors.photo) {
+                        setErrors(prev => {
+                            const next = { ...prev };
+                            delete next.photo;
+                            return next;
+                        });
+                    }
+                }
+            };
+
+            const validateStep1 = () => {
+                const newErrors = {};
+                if (!formData.foodName.trim()) newErrors.foodName = "Request required.";
+                if (!formData.category) newErrors.category = "Category is required.";
+                if (!formData.quantity) newErrors.quantity = "Quantity is required.";
+                if (!formData.servesPeople) newErrors.servesPeople = "Please estimate people supported.";
+
+                setErrors(newErrors);
+                return Object.keys(newErrors).length === 0;
+            };
+
+            const validateStep2 = () => {
+                const newErrors = {};
+                if (!formData.prepDate || !formData.prepTime) newErrors.prepDate = "Preparation date and time required.";
+                if (!formData.expiryDate || !formData.expiryTime) newErrors.expiryDate = "Expiry date and time required.";
+                // ensure expiry is after prep
+                if (formData.prepDate && formData.expiryDate && formData.prepTime && formData.expiryTime) {
+                    const prep = new Date(`${formData.prepDate}T${formData.prepTime}`);
+                    const exp = new Date(`${formData.expiryDate}T${formData.expiryTime}`);
+                    if (exp <= prep) {
+                        newErrors.expiryDate = "Expiry must be after preparation time.";
+                    }
+                }
+
+                setErrors(newErrors);
+                return Object.keys(newErrors).length === 0;
+            };
+
+            const validateStep3 = () => {
+                const newErrors = {};
+                document.querySelector('.form-container')?.classList.remove('shake');
+
+                if (!formData.address.trim()) newErrors.address = "Address is required.";
+                if (!formData.city.trim()) newErrors.city = "City is required.";
+                if (!formData.pincode.trim() || !/^\d{6}$/.test(formData.pincode)) newErrors.pincode = "Valid 6-digit pincode required.";
+
+                if (!formData.pickupDate) {
+                    newErrors.pickupDate = "Date is required.";
+                } else {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const selected = new Date(formData.pickupDate);
+                    selected.setHours(0, 0, 0, 0);
+                    if (selected < today) newErrors.pickupDate = "Pickup date cannot be in the past.";
+                }
+
+                if (!formData.pickupStart) newErrors.pickupStart = "Start time required.";
+                if (!formData.pickupEnd) newErrors.pickupEnd = "End time required.";
+
+                if (formData.pickupStart && formData.pickupEnd && formData.pickupStart > formData.pickupEnd) {
+                    newErrors.pickupEnd = "End time must be after start time";
+                }
+
+                if (!formData.contactNumber.trim() || !/^\d{10}$/.test(formData.contactNumber)) newErrors.contactNumber = "Please enter exactly 10 digits.";
+
+                if (Object.keys(newErrors).length > 0) {
+                    setTimeout(() => document.querySelector('.form-container')?.classList.add('shake'), 10);
+                }
+
+                setErrors(newErrors);
+                return Object.keys(newErrors).length === 0;
+            };
+
+            const handleNext = () => {
+                let isValid = false;
+                if (step === 1) isValid = validateStep1();
+                if (step === 2) isValid = validateStep2();
+                if (step === 3) isValid = validateStep3();
+
+                if (isValid) {
+                    setStep(prev => prev + 1);
+                    window.scrollTo(0, 0);
+                }
+            };
+
+            const handleBack = () => {
+                setStep(prev => prev - 1);
+                window.scrollTo(0, 0);
+            };
+
+            const handleSubmit = () => {
+                document.querySelector('.form-container')?.classList.remove('shake');
+                if (!formData.agreedTerms) {
+                    setErrors({ agreedTerms: "You must agree to the T&Cs" });
+                    setTimeout(() => document.querySelector('.form-container')?.classList.add('shake'), 10);
+                    return;
+                }
+
+                setIsSubmitting(true);
+                // Simulate API Call
+                setTimeout(() => {
+                    setIsSubmitting(false);
+                    setIsSuccess(true);
+                    window.scrollTo(0, 0);
+                    
+                    if (formData.shareLocation) {
+                        const mockDonationId = "DON" + Math.floor(Math.random() * 100000);
+                        startTracking(mockDonationId);
+                    }
+                }, 2000);
+            };
+
+            // Options Data
+            const categories = [
+                { id: 'Cooked Food', icon: 'utensils' },
+                { id: 'Raw Vegetables', icon: 'leaf' },
+                { id: 'Packaged Food', icon: 'package' },
+                { id: 'Beverages', icon: 'coffee' },
+                { id: 'Bakery', icon: 'cake' },
+                { id: 'Other', icon: 'more-horizontal' },
+            ];
+
+            const storageOptions = ['Room Temperature', 'Refrigerated', 'Frozen'];
+            const allergenOptions = ['Nuts', 'Dairy', 'Gluten', 'Eggs', 'Soy', 'Shellfish', 'None'];
+
+            useEffect(() => {
+                if (darkMode) {
+                    document.documentElement.classList.add('dark-mode');
+                } else {
+                    document.documentElement.classList.remove('dark-mode');
+                }
+            }, [darkMode]);
+
+            if (isSuccess) {
+                return (
+                    <div className={`success-state`} style={{ minHeight: '100vh', background: 'var(--background)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', position: 'relative', overflow: 'hidden' }}>
+                        {Array.from({ length: 60 }).map((_, i) => (
+                            <div key={i} className="confetti-piece" style={{
+                                left: `${Math.random() * 100}%`,
+                                background: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7'][Math.floor(Math.random() * 5)],
+                                animationDuration: `${Math.random() * 2 + 1.5}s`,
+                                animationDelay: `${Math.random() * 0.5}s`
+                            }}></div>
+                        ))}
+
+                        <div className="success-icon-wrap" style={{ width: '120px', height: '120px', background: 'var(--surface)', border: '5px solid var(--primary)', padding: '20px', marginBottom: '1.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, boxShadow: 'var(--shadow-glow)' }}>
+                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="draw-check">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <h1 style={{ fontSize: '3.5rem', marginBottom: '0.5rem', zIndex: 10, fontWeight: 800 }}>Thank You!</h1>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', marginBottom: '2.5rem', zIndex: 10 }}>Donation posted successfully</p>
+
+                        <div className="success-box" style={{ maxWidth: '550px', width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', position: 'relative', zIndex: 10, borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)' }}>
+                            <div className="badge-bounce" style={{ position: 'absolute', top: '-20px', right: '-20px', background: '#f59e0b', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '999px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: 'var(--shadow-md)', border: '4px solid var(--surface)', zIndex: 20, fontSize: '0.9rem' }}>
+                                <span>🏅</span> First Donation! Welcome to FoodBridge!
+                            </div>
+
+                            <div style={{ padding: '2rem' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.1em' }}>Donation Tracking ID</span>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface-hover)', padding: '1rem', borderRadius: 'var(--radius-md)', marginTop: '0.5rem', border: '1px solid var(--border)' }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '2px' }}>#FB-2026-00123</span>
+                                    <button className="edit-btn" style={{ padding: '0.5rem 1rem' }} onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText('#FB-2026-00123'); else alert('Copied: #FB-2026-00123'); }}><Icon name="copy" size={16} /> Copy</button>
+                                </div>
+
+                                <div style={{ marginTop: '2rem', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'rgba(34, 197, 94, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(34, 197, 94, 0.1)' }}>
+                                        <div style={{ fontSize: '2rem' }}>🌟</div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>You're helping feed {formData.servesPeople} people! 🌟</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Amazing impact on your local community</div>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                                        <div style={{ fontSize: '2rem' }}>🌱</div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>You saved {formData.quantity} {formData.quantityUnit} of food! 🌱</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Thank you for reducing food waste</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center', marginTop: '2.5rem', zIndex: 10 }}>
+                            <a href="donor_dashboard.html" className="btn btn-primary" style={{ padding: '0.8rem 2rem' }}><Icon name="map" size={18} /> Track Donation</a>
+                            <button className="btn btn-outline" style={{ padding: '0.8rem 2rem' }} onClick={() => window.location.reload()}><Icon name="plus" size={18} /> Donate Again</button>
+                            <a href="donor_dashboard.html" className="btn btn-outline" style={{ padding: '0.8rem 2rem' }}><Icon name="layout-dashboard" size={18} /> Go to Dashboard</a>
+                        </div>
+                        <div style={{ marginTop: '3.5rem', borderTop: '1px solid var(--border)', paddingTop: '2rem', width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 10, textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem' }}>Share your impact</p>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button className="social-btn" style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}><Icon name="message-circle" size={24} /></button>
+                                <button className="social-btn" style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1DA1F2', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}><Icon name="twitter" size={24} /></button>
+                                <button className="social-btn" style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'var(--transition)' }}><Icon name="instagram" size={24} /></button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className={`split-layout`}>
+
+                    {/* Left Info Panel (Desktop only) */}
+                    <div className="info-panel">
+                        <a href="donor_dashboard.html" className="logo">
+                            <i data-lucide="heart" fill="var(--primary)"></i> FoodBridge
+                        </a>
+
+                        <div className="info-content">
+                            <h1>Make a <br /><span style={{ color: 'var(--primary)' }}>Difference</span> Today</h1>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '1rem' }}>
+                                <div className="benefit-item">
+                                    <div className="benefit-icon"><i data-lucide="utensils-crossed"></i></div>
+                                    <div className="benefit-text">
+                                        <h3>Zero Food Waste</h3>
+                                        <p>Your surplus food directly feeds those who need it most, preventing landfill waste.</p>
+                                    </div>
+                                </div>
+                                <div className="benefit-item">
+                                    <div className="benefit-icon"><i data-lucide="truck"></i></div>
+                                    <div className="benefit-text">
+                                        <h3>Safe & Secure Logistics</h3>
+                                        <p>Registered NGO partners ensure food safety protocols are followed during transit.</p>
+                                    </div>
+                                </div>
+                                <div className="benefit-item">
+                                    <div className="benefit-icon"><i data-lucide="bar-chart-3"></i></div>
+                                    <div className="benefit-text">
+                                        <h3>Track Your Impact</h3>
+                                        <p>See exactly how many people you've fed and track your environmental footprint.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="quote-box">
+                                "Providing surplus food doesn't just fill stomachs; it builds community resilience and hope."
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Form Panel */}
+                    <div className="form-panel">
+                        <div className="form-container">
+                            <a href="donor_dashboard.html" className="logo-mobile">
+                                <Icon name="heart" size={24} style={{ fill: 'var(--primary)', color: 'var(--primary)' }} /> FoodBridge
+                            </a>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+                                <a href="donor_dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                    <Icon name="arrow-left" size={18} /> {window.t('common_back')}
+                                </a>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <LanguageSwitcher />
+                                    <a href="login.html" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                        <Icon name="log-out" size={18} /> {window.t('common_logout')}
+                                    </a>
+                                </div>
+                            </div>
+
+                            {/* Form Flow */}
+                            <>
+                                {/* Progress Header */}
+                                <div className="progress-container">
+                                    <div className="progress-header">
+                                        <span>Step {step} of 4</span>
+                                        <span style={{ color: 'var(--primary)' }}>
+                                            {step === 1 ? 'Food Details' : step === 2 ? 'Safety & Qualty' : step === 3 ? 'Pickup Logistics' : 'Review & Submit'}
+                                        </span>
+                                    </div>
+                                    <div className="progress-track">
+                                        <div className="progress-fill" style={{ width: `${(step / 4) * 100}%` }}></div>
+                                    </div>
+                                </div>
+
+                                {/* Step 1: Food Details */}
+                                {step === 1 && (
+                                    <div className="form-step">
+                                        <h2 className="form-section-title">What are you donating?</h2>
+                                        <p className="form-section-subtitle">Provide basic details about the food items.</p>
+
+                                        <div className="form-group">
+                                            <label className="form-label">Food Name / Title <span className="required">*</span></label>
+                                            <input type="text" className="form-control" placeholder="e.g., Mixed Veg Curry, 50 Buns" value={formData.foodName} onChange={e => updateForm('foodName', e.target.value)} />
+                                            {errors.foodName && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.foodName}</div>}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">Food Category <span className="required">*</span></label>
+                                            <div className="category-grid">
+                                                {categories.map(cat => (
+                                                    <div key={cat.id} className={`category-card ${formData.category === cat.id ? 'selected' : ''}`} onClick={() => updateForm('category', cat.id)}>
+                                                        <i data-lucide={cat.icon} style={{ width: '24px', height: '24px' }}></i>
+                                                        <span>{cat.id}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {errors.category && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.category}</div>}
+                                        </div>
+
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">Quantity <span className="required">*</span></label>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <input type="number" className="form-control" placeholder="0" min="1" style={{ flex: 2 }} value={formData.quantity} onChange={e => updateForm('quantity', e.target.value)} />
+                                                    <select className="form-control" style={{ flex: 1, padding: '0 0.5rem' }} value={formData.quantityUnit} onChange={e => updateForm('quantityUnit', e.target.value)}>
+                                                        <option value="portions">portions</option>
+                                                        <option value="kg">kg</option>
+                                                        <option value="boxes">boxes</option>
+                                                        <option value="litres">litres</option>
+                                                    </select>
+                                                </div>
+                                                {errors.quantity && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.quantity}</div>}
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Serves Approx (People) <span className="required">*</span></label>
+                                                <input type="number" className="form-control" placeholder="e.g., 20" min="1" value={formData.servesPeople} onChange={e => updateForm('servesPeople', e.target.value)} />
+                                                {errors.servesPeople && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.servesPeople}</div>}
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label">Description / Ingredients (Optional)</label>
+                                            <textarea className="form-control" rows="3" placeholder="Briefly describe the contents..." value={formData.description} onChange={e => updateForm('description', e.target.value)}></textarea>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Step 2: Food Safety */}
+                                {step === 2 && (
+                                    <div className="form-step">
+                                        <h2 className="form-section-title">Safety & Quality</h2>
+                                        <p className="form-section-subtitle">Help NGOs understand storage requirements and health specifics.</p>
+
+                                        <div className="form-row">
+                                            <div className="form-group" style={{ flex: 1 }}>
+                                                <label className="form-label">Preparation Date & Time <span className="required">*</span></label>
+                                                <div className="form-row" style={{ gap: '0.5rem' }}>
+                                                    <input type="date" className="form-control" value={formData.prepDate} onChange={e => updateForm('prepDate', e.target.value)} />
+                                                    <input type="time" className="form-control" value={formData.prepTime} onChange={e => updateForm('prepTime', e.target.value)} />
+                                                </div>
+                                                {errors.prepDate && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.prepDate}</div>}
+                                            </div>
+                                            <div className="form-group" style={{ flex: 1 }}>
+                                                <label className="form-label">Best Before <span className="required">*</span></label>
+                                                <div className="form-row" style={{ gap: '0.5rem' }}>
+                                                    <input type="date" className="form-control" value={formData.expiryDate} onChange={e => updateForm('expiryDate', e.target.value)} />
+                                                    <input type="time" className="form-control" value={formData.expiryTime} onChange={e => updateForm('expiryTime', e.target.value)} />
+                                                </div>
+                                                {(() => {
+                                                    if (formData.expiryDate && formData.expiryTime) {
+                                                        const exp = new Date(`${formData.expiryDate}T${formData.expiryTime}`);
+                                                        const diffHrs = (exp - new Date()) / (1000 * 60 * 60);
+                                                        if (diffHrs > 0 && diffHrs <= 3) {
+                                                            return (
+                                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: '#fef2f2', color: '#ef4444', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600, marginTop: '0.5rem', border: '1px solid #fecaca' }}>
+                                                                    ⚠️ Expiring Soon
+                                                                </div>
+                                                            );
+                                                        }
+                                                    }
+                                                    return null;
+                                                })()}
+                                                {errors.expiryDate && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.expiryDate}</div>}
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">Storage Type <span className="required">*</span></label>
+                                            <div className="category-grid">
+                                                <div className={`category-card ${formData.storageType === 'Room Temperature' ? 'selected' : ''}`} onClick={() => updateForm('storageType', 'Room Temperature')}>
+                                                    <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🌡️</span>
+                                                    <span>Room Temperature</span>
+                                                </div>
+                                                <div className={`category-card ${formData.storageType === 'Refrigerated' ? 'selected' : ''}`} onClick={() => updateForm('storageType', 'Refrigerated')}>
+                                                    <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>❄️</span>
+                                                    <span>Refrigerated</span>
+                                                </div>
+                                                <div className={`category-card ${formData.storageType === 'Frozen' ? 'selected' : ''}`} onClick={() => updateForm('storageType', 'Frozen')}>
+                                                    <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🧊</span>
+                                                    <span>Frozen</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">Known Allergens</label>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                {allergenOptions.map(opt => {
+                                                    const isSelected = formData.allergens.includes(opt);
+                                                    return (
+                                                        <div
+                                                            key={opt}
+                                                            onClick={() => toggleArrayItem('allergens', opt)}
+                                                            style={{
+                                                                padding: '0.5rem 1rem',
+                                                                borderRadius: '999px',
+                                                                cursor: 'pointer',
+                                                                fontWeight: 500,
+                                                                fontSize: '0.9rem',
+                                                                transition: 'var(--transition)',
+                                                                border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                                                background: isSelected ? 'var(--primary)' : 'transparent',
+                                                                color: isSelected ? 'white' : 'var(--text-main)'
+                                                            }}
+                                                        >
+                                                            {opt}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div className="form-row">
+                                            <div className="form-group" style={{ flex: 1 }}>
+                                                <div className="toggle-switch" onClick={() => updateForm('isVegetarian', !formData.isVegetarian)}>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600 }}>Is this Vegetarian?</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Contains no meat or fish</div>
+                                                    </div>
+                                                    <div className={`switch-container ${formData.isVegetarian ? 'active' : ''}`}><div className="switch-knob"></div></div>
+                                                </div>
+                                            </div>
+                                            <div className="form-group" style={{ flex: 1 }}>
+                                                <div className="toggle-switch" onClick={() => updateForm('isHalal', !formData.isHalal)}>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600 }}>Is it Halal / Kosher?</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Prepared accordingly</div>
+                                                    </div>
+                                                    <div className={`switch-container ${formData.isHalal ? 'active' : ''}`}><div className="switch-knob"></div></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label">Upload Photo (Highly Recommended)</label>
+                                            <div className="upload-zone" onClick={() => fileInputRef.current?.click()} style={{ position: 'relative', border: errors.photo ? '2px dashed var(--error)' : '2px dashed var(--border)' }}>
+                                                <input type="file" ref={fileInputRef} accept="image/jpeg, image/png" style={{ display: 'none' }} onChange={handlePhotoUpload} />
+                                                {formData.photoPreview ? (
+                                                    <div onClick={(e) => e.stopPropagation()}>
+                                                        <img src={formData.photoPreview} alt="Preview" className="upload-preview" />
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (formData.photoPreview && formData.photoPreview.startsWith('blob:')) {
+                                                                    URL.revokeObjectURL(formData.photoPreview);
+                                                                }
+                                                                setFormData(prev => ({ ...prev, photo: null, photoPreview: null }));
+                                                                fileInputRef.current.value = '';
+                                                            }}
+                                                            style={{ position: 'absolute', top: '10px', right: '10px', background: 'var(--error)', color: 'white', border: 'none', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, boxShadow: 'var(--shadow-sm)' }}
+                                                        >
+                                                            <i data-lucide="x" style={{ width: '16px', height: '16px' }}></i>
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="upload-content">
+                                                        <i data-lucide="camera" style={{ width: '40px', height: '40px', color: errors.photo ? 'var(--error)' : 'var(--text-muted)', marginBottom: '1rem' }}></i>
+                                                        <h4 style={{ marginBottom: '0.5rem', color: errors.photo ? 'var(--error)' : 'var(--text-main)' }}>Drag & drop or Click to upload</h4>
+                                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Supports JPG, PNG up to 5MB</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {errors.photo && <div className="error-message" style={{ marginTop: '0.5rem' }}><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.photo}</div>}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Step 3: Pickup Logistics */}
+                                {step === 3 && (
+                                    <div className="form-step slide-right">
+                                        <h2 className="form-section-title">Pickup & Logistics</h2>
+                                        <p className="form-section-subtitle">Where and when should the NGO collect the food?</p>
+
+                                        <div style={{ background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(14, 165, 233, 0.05) 100%)', border: '1px solid rgba(14, 165, 233, 0.3)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '1.5rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0ea5e9', boxShadow: 'var(--shadow-sm)' }}>
+                                                        <Icon name="map-pin" size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 style={{ color: '#0ea5e9', marginBottom: '0.25rem' }}>📍 Share Live Location</h4>
+                                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Helps NGO find you easily</p>
+                                                    </div>
+                                                </div>
+                                                <div className="toggle-switch" onClick={handleLocationToggle} style={{ width: 'auto' }}>
+                                                    <div className={`switch-container ${formData.shareLocation ? 'active' : ''}`} style={{ background: formData.shareLocation ? '#0ea5e9' : 'var(--border)' }}>
+                                                        <div className="switch-knob"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {formData.shareLocation && (
+                                                <div style={{ background: 'white', borderRadius: 'var(--radius-md)', padding: '1rem', marginTop: '1rem', border: '1px solid var(--border)', fontSize: '0.9rem' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                        {locationStatus === 'ON' && <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)' }}></span>}
+                                                        {locationStatus === 'DETECTING' && <span className="animate-spin" style={{ display: 'inline-block', width: '12px', height: '12px', border: '2px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%' }}></span>}
+                                                        {locationStatus === 'DENIED' && <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--error)' }}></span>}
+                                                        
+                                                        <span style={{ fontWeight: 600 }}>
+                                                            {locationStatus === 'ON' && 'Live location active ✅'}
+                                                            {locationStatus === 'DETECTING' && 'Detecting location...'}
+                                                            {locationStatus === 'DENIED' && 'Location access denied ❌'}
+                                                        </span>
+                                                    </div>
+                                                    {locationDetails && <div style={{ color: 'var(--text-muted)', marginLeft: '1.2rem' }}>{locationDetails}</div>}
+                                                    
+                                                    <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: 'var(--text-muted)', borderLeft: '3px solid #0ea5e9' }}>
+                                                        <strong>🔒 Privacy Notice:</strong><br />
+                                                        • Location shared only during active donation<br />
+                                                        • Only the assigned NGO can see this<br />
+                                                        • You can turn this off at any time<br />
+                                                        • Auto-stops after 4 hours
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label" style={{ marginBottom: '0.5rem' }}>Pickup Address <span className="required">*</span></label>
+                                            <textarea id="pickup_address" className="form-control" rows="3" placeholder="Enter your full address..." value={formData.address} onChange={e => updateForm('address', e.target.value)}></textarea>
+                                            {errors.address && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.address}</div>}
+                                            <button id="locationBtn" type="button" className="btn btn-outline" style={{ marginTop: '0.5rem', padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: 'var(--primary)', borderColor: 'var(--primary)' }} onClick={getCurrentLocation}>
+                                                <i data-lucide="map-pin" style={{ width: '14px' }}></i> Use Current Location
+                                            </button>
+                                        </div>
+
+                                        {formData.address && (
+                                            <div style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                                                    <span>🏢 Nearest NGO: ~2.3 km away</span>
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Helping Hands Foundation</div>
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginTop: '0.25rem', cursor: 'pointer' }}>
+                                                    <input type="checkbox" checked={formData.notifyNGO} onChange={(e) => updateForm('notifyNGO', e.target.checked)} style={{ accentColor: 'var(--primary)' }} />
+                                                    <span style={{ color: 'var(--primary)', fontWeight: 500 }}>Notify them automatically</span>
+                                                </label>
+                                            </div>
+                                        )}
+
+                                        <div className="form-row">
+                                            <div className="form-group" style={{ flex: 1 }}>
+                                                <label className="form-label">City <span className="required">*</span></label>
+                                                <input type="text" className="form-control" placeholder="e.g. Delhi" value={formData.city} onChange={e => updateForm('city', e.target.value)} />
+                                                {errors.city && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.city}</div>}
+                                            </div>
+                                            <div className="form-group" style={{ flex: 1 }}>
+                                                <label className="form-label">Pincode <span className="required">*</span></label>
+                                                <input type="number" className="form-control" placeholder="e.g. 110001" value={formData.pincode} onChange={e => updateForm('pincode', e.target.value)} />
+                                                {errors.pincode && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.pincode}</div>}
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group" style={{ position: 'relative' }}>
+                                            <label className="form-label">Preferred Pickup Date <span className="required">*</span></label>
+                                            <input type="date" className="form-control" min={new Date().toISOString().split('T')[0]} value={formData.pickupDate} onChange={e => updateForm('pickupDate', e.target.value)} style={{ paddingLeft: '2.5rem', position: 'relative', zIndex: 1, background: 'transparent' }} />
+                                            <i data-lucide="calendar" style={{ position: 'absolute', left: '1rem', top: '2.4rem', width: '16px', color: 'var(--text-muted)', zIndex: 0 }}></i>
+                                            {errors.pickupDate && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.pickupDate}</div>}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">Pickup Time Window</label>
+                                            <div className="form-row">
+                                                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Available From <span className="required">*</span></label>
+                                                    <input type="time" className="form-control" value={formData.pickupStart} onChange={e => updateForm('pickupStart', e.target.value)} />
+                                                    {errors.pickupStart && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.pickupStart}</div>}
+                                                </div>
+                                                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                                                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Available Until <span className="required">*</span></label>
+                                                    <input type="time" className="form-control" value={formData.pickupEnd} onChange={e => updateForm('pickupEnd', e.target.value)} />
+                                                </div>
+                                            </div>
+                                            {errors.pickupEnd && <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: '#fef2f2', color: '#ef4444', padding: '0.25rem 0.5rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600, marginTop: '0.5rem', border: '1px solid #fecaca' }}>⚠️ {errors.pickupEnd}</div>}
+                                        </div>
+
+                                        <div className="form-group" style={{ position: 'relative' }}>
+                                            <label className="form-label">Contact Number <span className="required">*</span></label>
+                                            <div style={{ display: 'flex' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0 1rem', background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRight: 'none', borderTopLeftRadius: 'var(--radius-md)', borderBottomLeftRadius: 'var(--radius-md)' }}>
+                                                    <span style={{ fontSize: '1.2rem' }}>🇮🇳</span>
+                                                    <span style={{ fontWeight: 600 }}>+91</span>
+                                                </div>
+                                                <input type="tel" className="form-control" placeholder="98XXXXXXXX" value={formData.contactNumber} onChange={e => updateForm('contactNumber', e.target.value)} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} />
+                                            </div>
+                                            {errors.contactNumber && <div className="error-message"><i data-lucide="alert-circle" style={{ width: '14px' }}></i> {errors.contactNumber}</div>}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <div onClick={() => updateForm('needsPackagingHelp', !formData.needsPackagingHelp)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: formData.needsPackagingHelp ? '2px solid var(--primary)' : '2px solid var(--border)', borderRadius: 'var(--radius-md)', background: formData.needsPackagingHelp ? 'rgba(34, 197, 94, 0.05)' : 'var(--surface)', cursor: 'pointer', transition: 'var(--transition)' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: formData.needsPackagingHelp ? 'rgba(34, 197, 94, 0.1)' : 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: formData.needsPackagingHelp ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                                        <i data-lucide="package"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600 }}>Need help with packaging?</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>A volunteer will assist with packing</div>
+                                                    </div>
+                                                </div>
+                                                <div className={`switch-container ${formData.needsPackagingHelp ? 'active' : ''}`}><div className="switch-knob"></div></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                            <label className="form-label">Special Instructions (Optional)</label>
+                                            <textarea className="form-control" rows="3" placeholder="Any specific instructions for the volunteer or NGO..." value={formData.specialInstructions} onChange={e => updateForm('specialInstructions', e.target.value)} maxLength="200"></textarea>
+                                            <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{formData.specialInstructions.length}/200</div>
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Step 4: Review */}
+                                {step === 4 && (
+                                    <div key="step4" className="form-step slide-right">
+                                        <h2 className="form-section-title">Review Your Donation Details</h2>
+                                        <p className="form-section-subtitle">Please verify all details before submitting</p>
+                                        <div className="summary-card stagger-1">
+                                            <div className="summary-header food" style={{ background: 'rgba(34, 197, 94, 0.1)' }}>
+                                                <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', fontSize: '1.1rem' }}>🍱 Food Details</h4>
+                                                <button className="edit-btn" onClick={() => setStep(1)}><Icon name="edit-3" size={14} /> Edit</button>
+                                            </div>
+                                            <div className="summary-body">
+                                                <div><span className="summary-label">Food Name</span><span className="summary-val">{formData.foodName}</span></div>
+                                                <div><span className="summary-label">Category</span><span className="summary-val" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name={categories.find(c => c.id === formData.category)?.icon || 'package'} size={14} /> {formData.category}</span></div>
+                                                <div><span className="summary-label">Quantity</span><span className="summary-val">{formData.quantity} {formData.quantityUnit}</span></div>
+                                                <div><span className="summary-label">Serves</span><span className="summary-val">{formData.servesPeople} people</span></div>
+                                                <div className="summary-full"><span className="summary-label">Description</span><span className="summary-val">{formData.description || "No description provided"}</span></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="summary-card stagger-2">
+                                            <div className="summary-header safety" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
+                                                <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', fontSize: '1.1rem' }}>🛡️ Safety Details</h4>
+                                                <button className="edit-btn" onClick={() => setStep(2)}><Icon name="edit-3" size={14} /> Edit</button>
+                                            </div>
+                                            <div className="summary-body">
+                                                <div><span className="summary-label">Preparation</span><span className="summary-val">{formData.prepDate} at {formData.prepTime}</span></div>
+                                                <div>
+                                                    <span className="summary-label">Expiry</span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <span className="summary-val">{formData.expiryDate} at {formData.expiryTime}</span>
+                                                        {formData.expiryDate && formData.expiryTime && (new Date(`${formData.expiryDate}T${formData.expiryTime}`) - new Date()) / (1000 * 60 * 60) <= 3 && (
+                                                            <span style={{ background: '#fef2f2', color: '#ef4444', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>⚠️ Expiring Soon</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div><span className="summary-label">Storage Type</span><span className="summary-val" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name="thermometer" size={14} /> {formData.storageType}</span></div>
+                                                <div>
+                                                    <span className="summary-label">Dietary</span>
+                                                    <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem' }}>
+                                                        <span style={{ background: formData.isVegetarian ? 'rgba(34, 197, 94, 0.1)' : 'var(--surface-hover)', color: formData.isVegetarian ? 'var(--primary)' : 'var(--text-muted)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700 }}>{formData.isVegetarian ? 'VEGETARIAN' : 'NON-VEG'}</span>
+                                                        <span style={{ background: formData.isHalal ? 'rgba(34, 197, 94, 0.1)' : 'var(--surface-hover)', color: formData.isHalal ? 'var(--primary)' : 'var(--text-muted)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700 }}>{formData.isHalal ? 'HALAL/KOSHER' : 'HALAL: NO'}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="summary-full">
+                                                    <span className="summary-label">Allergens</span>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
+                                                        {formData.allergens.length > 0 ? formData.allergens.map(a => <span key={a} style={{ background: 'var(--surface-hover)', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', border: '1px solid var(--border)', fontWeight: 500 }}>{a}</span>) : <span className="summary-val">None</span>}
+                                                    </div>
+                                                </div>
+                                                {formData.photoPreview && (
+                                                    <div className="summary-full">
+                                                        <span className="summary-label">Uploaded Photo</span>
+                                                        <img src={formData.photoPreview} alt="Food Upload" style={{ width: '100px', height: '100px', borderRadius: '12px', objectFit: 'cover', border: '2px solid var(--border)', marginTop: '0.5rem' }} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="summary-card stagger-3">
+                                            <div className="summary-header pickup" style={{ background: 'rgba(249, 115, 22, 0.1)' }}>
+                                                <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)', fontSize: '1.1rem' }}>📍 Pickup Details</h4>
+                                                <button className="edit-btn" onClick={() => setStep(3)}><Icon name="edit-3" size={14} /> Edit</button>
+                                            </div>
+                                            <div className="summary-body">
+                                                <div className="summary-full"><span className="summary-label">Full Address</span><span className="summary-val">{formData.address}</span></div>
+                                                <div><span className="summary-label">City + Pincode</span><span className="summary-val">{formData.city} - {formData.pincode}</span></div>
+                                                <div><span className="summary-label">Pickup Date</span><span className="summary-val">{formData.pickupDate}</span></div>
+                                                <div className="summary-full"><span className="summary-label">Time Window</span><span className="summary-val" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Icon name="clock" size={14} /> {formData.pickupStart} to {formData.pickupEnd}</span></div>
+                                                <div><span className="summary-label">Contact Number</span><span className="summary-val">+91 {formData.contactNumber}</span></div>
+                                                <div><span className="summary-label">Packaging Help</span><span className="summary-val">{formData.needsPackagingHelp ? '✅ Yes' : '❌ No'}</span></div>
+                                                <div className="summary-full"><span className="summary-label">Special Instructions</span><span className="summary-val">{formData.specialInstructions || "None"}</span></div>
+                                                <div className="summary-full" style={{ background: 'var(--surface-hover)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', border: '1px solid var(--border)', fontWeight: 600 }}><span>🏢</span> Nearest NGO: Helping Hands Foundation</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="summary-highlight stagger-4">
+                                            <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}><Icon name="zap" size={16} /> Quick Summary</h4>
+                                            <div style={{ color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '1rem' }}>
+                                                <div>You are donating <strong>{formData.quantity} {formData.quantityUnit}</strong> of <strong>{formData.foodName}</strong>.</div>
+                                                <div>This can feed approximately <strong>{formData.servesPeople} people</strong>.</div>
+                                                <div>Pickup on <strong>{formData.pickupDate}</strong> between <strong>{formData.pickupStart} and {formData.pickupEnd}</strong>.</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group stagger-4" style={{ marginTop: '2rem' }}>
+                                            <label className={`checkbox-item ${errors.agreedTerms ? 'shake' : ''}`} style={{ borderStyle: 'dashed', borderColor: errors.agreedTerms ? 'var(--error)' : 'var(--border)', padding: '1.25rem', background: errors.agreedTerms ? 'rgba(239, 68, 68, 0.05)' : 'var(--surface)', margin: 0, cursor: 'pointer', color: errors.agreedTerms ? 'var(--error)' : 'var(--text-main)', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                                <input type="checkbox" checked={formData.agreedTerms} onChange={(e) => updateForm('agreedTerms', e.target.checked)} style={{ accentColor: 'var(--primary)', width: '22px', height: '22px', marginTop: '0.1rem' }} />
+                                                <div style={{ fontSize: '0.95rem', fontWeight: 500, lineHeight: 1.5 }}>
+                                                    I confirm that the food is safe for consumption and all details provided are accurate.
+                                                    <a href="#" style={{ color: 'var(--primary)', textDecoration: 'none', marginLeft: '0.5rem', fontWeight: 600 }}>View Food Safety Guidelines →</a>
+                                                </div>
+                                            </label>
+                                            {errors.agreedTerms && <div className="error-message" style={{ marginTop: '0.75rem' }}><Icon name="alert-circle" size={16} /> {errors.agreedTerms}</div>}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                <div className="form-actions stagger-4">
+                                    {step > 1 && (
+                                        <button className="btn btn-outline" onClick={handleBack} disabled={isSubmitting} style={{ minWidth: '120px' }}>
+                                            <Icon name="arrow-left" size={16} /> Back
+                                        </button>
+                                    )}
+
+                                    {step < 4 ? (
+                                        <button className="btn btn-primary" onClick={handleNext} style={{ marginLeft: 'auto', minWidth: '160px' }}>
+                                            Next Step <Icon name="arrow-right" size={16} />
+                                        </button>
+                                    ) : (
+                                        <button className="btn btn-primary" onClick={handleSubmit} disabled={isSubmitting} style={{ flex: 1, marginLeft: step > 1 ? '1rem' : 0, padding: '1.25rem', fontSize: '1.25rem', fontWeight: 700, animation: !isSubmitting ? 'pulse 2s infinite' : 'none', justifyContent: 'center', background: 'var(--primary)' }}>
+                                            {isSubmitting ? (
+                                                <><Icon name="loader-2" size={20} className="animate-spin" style={{ marginRight: '0.5rem' }} /> Submitting...</>
+                                            ) : (
+                                                <>Submit Donation 🎉</>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        </div>
+                    </div>
+
+                    {/* Toast Notification */}
+                    {toastMessage && (
+                        <div style={{
+                            position: 'fixed',
+                            bottom: '100px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: '#334155',
+                            color: 'white',
+                            padding: '0.75rem 1.5rem',
+                            borderRadius: '999px',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+                            zIndex: 9999,
+                            animation: 'slideUp 0.3s ease-out, fadeOut 0.3s ease-out 4.7s forwards',
+                            fontWeight: 500,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            whiteSpace: 'nowrap'
+                        }}>
+                            {toastMessage}
+                        </div>
+                    )}
+                    <style>{`
+                        @keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+                        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+                    `}</style>
+
+                    {/* Dark Mode Toggle */}
+                    <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)} title="Toggle Dark Mode">
+                        <i data-lucide={darkMode ? "sun" : "moon"}></i>
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(
+            <ErrorBoundary>
+                <App />
+            </ErrorBoundary>
+        );
+    </script>
+</body>
+
+</html>

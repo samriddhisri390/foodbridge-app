@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create an Account | FoodBridge</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- React & Babel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Translations & Global Functions -->
+    <script src="lang.js"></script>
+
+    <!-- Pre-existing Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        body {
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('signup-bg.png') no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2.5rem 1rem;
+        }
+
+        .signup-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .signup-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-radius: 32px;
+            padding: 3.5rem;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            text-align: center;
+            animation: slideUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .signup-header {
+            margin-bottom: 2.5rem;
+        }
+
+        .logo-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary);
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            text-decoration: none;
+        }
+
+        .signup-header h1 {
+            font-size: 2.5rem;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .signup-header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .role-selector {
+            display: flex;
+            background: rgba(0, 0, 0, 0.04);
+            padding: 0.5rem;
+            border-radius: 20px;
+            margin-bottom: 2.5rem;
+            gap: 0.5rem;
+        }
+
+        .role-option {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 16px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: var(--transition);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .role-option.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            text-align: left;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group.full-width {
+            grid-column: span 2;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            margin-bottom: 0.6rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 1.2rem;
+            color: var(--text-muted);
+            width: 1.1rem;
+            height: 1.1rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 1rem 1rem 1rem 3.2rem;
+            border-radius: 16px;
+            border: 2px solid rgba(0, 0, 0, 0.06);
+            background: rgba(255, 255, 255, 0.9);
+            transition: var(--transition);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-control.error {
+            border-color: #ef4444;
+        }
+
+        .btn-signup {
+            width: 100%;
+            padding: 1.2rem;
+            font-size: 1.1rem;
+            margin-top: 1rem;
+            border-radius: 16px;
+            background: var(--primary);
+            color: white;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .btn-signup:hover {
+            background: var(--primary-dark);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px -10px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-signup:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 1.25rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .message.error {
+            background: #ffe4e6;
+            color: #e11d48;
+            border: 1px solid #fda4af;
+        }
+
+        .message.success {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #86efac;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .login-footer {
+            margin-top: 2.5rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .login-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 700;
+            transition: var(--transition);
+        }
+
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .dynamic-fields-enter {
+            animation: slideInLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+
+        @media (max-width: 480px) {
+            body {
+                padding: 1.5rem 1rem;
+            }
+            .signup-card {
+                padding: 2rem 1.5rem;
+                border-radius: 20px;
+            }
+            .signup-header h1 {
+                font-size: 1.75rem;
+            }
+            .role-option {
+                font-size: 0.85rem;
+                padding: 0.75rem;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .form-group.full-width {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const LanguageSwitcher = () => {
+            const [lang, setLang] = useState(window.getLang());
+            const toggleLang = (newLang) => {
+                window.setLang(newLang);
+                setLang(newLang);
+                window.location.reload();
+            };
+            return (
+                <div className="lang-switcher" style={{ position: 'fixed', top: '2rem', right: '2rem', zIndex: 1000, background: 'var(--surface)', boxShadow: 'var(--shadow-md)' }}>
+                    <button className={lang === 'english' ? 'active' : ''} onClick={() => toggleLang('english')}>🇬🇧 EN</button>
+                    <button className={lang === 'hindi' ? 'active' : ''} onClick={() => toggleLang('hindi')}>🇮🇳 HI</button>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [role, setRole] = useState('donor');
+            const [formData, setFormData] = useState({
+                fullName: '',
+                email: '',
+                password: '',
+                confirmPassword: '',
+                phone: '',
+                address: '',
+                orgName: '',
+                regId: '',
+                location: ''
+            });
+
+            const [error, setError] = useState('');
+            const [success, setSuccess] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            useEffect(() => {
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }, [role, error, success]);
+
+            const handleChange = (e) => {
+                setFormData({ ...formData, [e.target.name]: e.target.value });
+                if (error) setError('');
+            };
+
+            const validate = () => {
+                if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
+                    return "Please fill in all common fields.";
+                }
+                if (formData.password !== formData.confirmPassword) {
+                    return "Passwords do not match.";
+                }
+                if (formData.password.length < 6) {
+                    return "Password must be at least 6 characters.";
+                }
+                if (role === 'donor') {
+                    if (!formData.phone || !formData.address) return "Please provide your phone and address.";
+                } else {
+                    if (!formData.orgName || !formData.regId || !formData.location) return "Please fill in all NGO details.";
+                }
+                return null;
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const validationError = validate();
+                if (validationError) {
+                    setError(validationError);
+                    return;
+                }
+
+                setLoading(true);
+                // Simulate API call
+                setTimeout(() => {
+                    setLoading(false);
+                    setSuccess("Account created successfully! Redirecting...");
+                    setTimeout(() => {
+                        if (role === 'ngo') {
+                            window.location.href = 'ngo_dashboard.html';
+                        } else {
+                            window.location.href = 'donor_dashboard.html';
+                        }
+                    }, 2000);
+                }, 1500);
+            };
+
+            return (
+                <>
+                <LanguageSwitcher />
+                <div className="signup-container">
+                    <div className="signup-card">
+                        <div className="signup-header">
+                            <a href="react-version.html" className="logo-box">
+                                <i data-lucide="heart"></i>
+                                FoodBridge
+                            </a>
+                            <h1>{window.t('signup_title')}</h1>
+                            <p>{window.t('signup_subtitle')}</p>
+                        </div>
+
+                        <div className="role-selector">
+                            <div 
+                                className={`role-option ${role === 'donor' ? 'active' : ''}`}
+                                onClick={() => setRole('donor')}
+                            >
+                                <i data-lucide="user"></i>
+                                {window.t('login_role_donor')}
+                            </div>
+                            <div 
+                                className={`role-option ${role === 'ngo' ? 'active' : ''}`}
+                                onClick={() => setRole('ngo')}
+                            >
+                                <i data-lucide="building"></i>
+                                {window.t('login_role_ngo')}
+                            </div>
+                        </div>
+
+                        {error && (
+                            <div className="message error">
+                                <i data-lucide="alert-circle"></i>
+                                {error}
+                            </div>
+                        )}
+                        {success && (
+                            <div className="message success">
+                                <i data-lucide="check-circle-2"></i>
+                                {success}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-grid">
+                                {/* Common Fields */}
+                                <div className="form-group full-width">
+                                    <label>{window.t('signup_name')}</label>
+                                    <div className="input-wrapper">
+                                        <i data-lucide="user"></i>
+                                        <input 
+                                            type="text" 
+                                            name="fullName"
+                                            className="form-control" 
+                                            placeholder="John Doe"
+                                            value={formData.fullName}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>{window.t('signup_email')}</label>
+                                    <div className="input-wrapper">
+                                        <i data-lucide="mail"></i>
+                                        <input 
+                                            type="email" 
+                                            name="email"
+                                            className="form-control" 
+                                            placeholder="john@example.com"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>{window.t('signup_password')}</label>
+                                    <div className="input-wrapper">
+                                        <i data-lucide="lock"></i>
+                                        <input 
+                                            type="password" 
+                                            name="password"
+                                            className="form-control" 
+                                            placeholder="••••••••"
+                                            value={formData.password}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>{window.t('signup_confirm')}</label>
+                                    <div className="input-wrapper">
+                                        <i data-lucide="shield-check"></i>
+                                        <input 
+                                            type="password" 
+                                            name="confirmPassword"
+                                            className="form-control" 
+                                            placeholder="••••••••"
+                                            value={formData.confirmPassword}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Role-Based Fields */}
+                                {role === 'donor' ? (
+                                    <React.Fragment key="donor-fields">
+                                        <div className="form-group dynamic-fields-enter">
+                                            <label>{window.t('signup_phone')}</label>
+                                            <div className="input-wrapper">
+                                                <i data-lucide="phone"></i>
+                                                <input 
+                                                    type="tel" 
+                                                    name="phone"
+                                                    className="form-control" 
+                                                    placeholder="+1 234 567 890"
+                                                    value={formData.phone}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group dynamic-fields-enter">
+                                            <label>{window.t('profile_address')}</label>
+                                            <div className="input-wrapper">
+                                                <i data-lucide="map-pin"></i>
+                                                <input 
+                                                    type="text" 
+                                                    name="address"
+                                                    className="form-control" 
+                                                    placeholder="City, State"
+                                                    value={formData.address}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+                                        </div>
+                                    </React.Fragment>
+                                ) : (
+                                    <React.Fragment key="ngo-fields">
+                                        <div className="form-group full-width dynamic-fields-enter">
+                                            <label>Organization Name</label>
+                                            <div className="input-wrapper">
+                                                <i data-lucide="building-2"></i>
+                                                <input 
+                                                    type="text" 
+                                                    name="orgName"
+                                                    className="form-control" 
+                                                    placeholder="Global Help Foundation"
+                                                    value={formData.orgName}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group dynamic-fields-enter">
+                                            <label>Registration ID</label>
+                                            <div className="input-wrapper">
+                                                <i data-lucide="file-text"></i>
+                                                <input 
+                                                    type="text" 
+                                                    name="regId"
+                                                    className="form-control" 
+                                                    placeholder="REG-12345"
+                                                    value={formData.regId}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-group dynamic-fields-enter">
+                                            <label>Headquarters Location</label>
+                                            <div className="input-wrapper">
+                                                <i data-lucide="map"></i>
+                                                <input 
+                                                    type="text" 
+                                                    name="location"
+                                                    className="form-control" 
+                                                    placeholder="Street, District"
+                                                    value={formData.location}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+                                        </div>
+                                    </React.Fragment>
+                                )}
+                            </div>
+
+                            <button type="submit" className="btn-signup" disabled={loading}>
+                                {loading ? (
+                                    window.t('common_loading')
+                                ) : (
+                                    <React.Fragment>
+                                        {window.t('signup_btn')}
+                                        <i data-lucide="arrow-right"></i>
+                                    </React.Fragment>
+                                )}
+                            </button>
+                        </form>
+
+                        <div className="login-footer">
+                            {window.t('signup_have_account')} <a href="login.html">{window.t('signup_login')}</a>
+                        </div>
+                    </div>
+                </div>
+                </>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
